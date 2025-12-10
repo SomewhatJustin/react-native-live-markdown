@@ -2,3 +2,4 @@ export {default as MarkdownTextInput, getWorkletRuntime} from './MarkdownTextInp
 export type {MarkdownTextInputProps, MarkdownStyle} from './MarkdownTextInput';
 export type {MarkdownType, MarkdownRange} from './commonTypes';
 export {default as parseExpensiMark} from './parseExpensiMark';
+export {default as parseMarkdown} from './parser';

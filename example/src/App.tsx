@@ -2,7 +2,7 @@ import * as React from 'react';
 import {Button, ScrollView, StyleSheet, Text} from 'react-native';
 import {
   MarkdownTextInput,
-  parseExpensiMark,
+  parseMarkdown,
 } from '@expensify/react-native-live-markdown';
 import * as TEST_CONST from './testConstants';
 import {PlatformInfo} from './PlatformInfo';
@@ -50,7 +50,7 @@ export default function App() {
         style={[styles.input, style]}
         ref={ref}
         markdownStyle={markdownStyle}
-        parser={parseExpensiMark}
+        parser={parseMarkdown}
         placeholder="Type here..."
         onSelectionChange={e => setSelection(e.nativeEvent.selection)}
         selection={selection}

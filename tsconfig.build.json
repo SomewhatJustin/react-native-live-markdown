@@ -1,0 +1,15 @@
+{
+  "extends": "./tsconfig.json",
+  "include": ["src/**/*"],
+  "exclude": [
+    "**/node_modules/**/*",
+    "**/lib/**/*",
+    "example/**/*",
+    "WebExample/**/*",
+    "**/Pods",
+    "mock/**/*",
+    "src/__tests__/**/*",
+    "**/__tests__/**/*",
+    "**/__mocks__/**/*"
+  ]
+}

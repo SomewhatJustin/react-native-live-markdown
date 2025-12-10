@@ -12,14 +12,19 @@ function isWeb() {
 }
 
 function isJest() {
-  return !!global.process.env.JEST_WORKER_ID;
+  return !!global.process?.env?.JEST_WORKER_ID;
 }
 
-// eslint-disable-next-line no-underscore-dangle
-if (__DEV__ && !isWeb() && !isJest() && (decode as WorkletFunction<unknown[], unknown>).__workletHash === undefined) {
-  throw new Error(
-    "[react-native-live-markdown] `parseExpensiMark` requires `html-entities` package to be workletized. Please add `'worklet';` directive at the top of `node_modules/html-entities/lib/index.js` using patch-package. Make sure you've installed `html-entities` version 2.5.3 exactly as otherwise there is no `lib/` directory.",
-  );
+let workletChecked = false;
+function checkWorklet() {
+  if (workletChecked) return;
+  workletChecked = true;
+  // eslint-disable-next-line no-underscore-dangle
+  if (__DEV__ && !isWeb() && !isJest() && (decode as WorkletFunction<unknown[], unknown>).__workletHash === undefined) {
+    throw new Error(
+      "[react-native-live-markdown] `parseExpensiMark` requires `html-entities` package to be workletized. Please add `'worklet';` directive at the top of `node_modules/html-entities/lib/index.js` using patch-package. Make sure you've installed `html-entities` version 2.5.3 exactly as otherwise there is no `lib/` directory.",
+    );
+  }
 }
 
 const MAX_PARSABLE_LENGTH = 4000;
@@ -238,6 +243,7 @@ function parseTreeToTextAndRanges(tree: StackItem): [string, MarkdownRange[]] {
 }
 
 function parseExpensiMark(markdown: string): MarkdownRange[] {
+  checkWorklet();
   if (markdown.length > MAX_PARSABLE_LENGTH) {
     return [];
   }

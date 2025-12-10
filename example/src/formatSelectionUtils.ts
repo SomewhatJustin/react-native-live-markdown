@@ -1,5 +1,5 @@
 import {
-  parseExpensiMark,
+  parseMarkdown,
   type MarkdownType,
 } from '@expensify/react-native-live-markdown';
 
@@ -30,7 +30,7 @@ function handleFormatSelection(
   }
 
   // Remove formatting if the selection is already formatted.
-  const markdownRanges = parseExpensiMark(text);
+  const markdownRanges = parseMarkdown(text);
   for (const range of markdownRanges) {
     if (
       range &&
