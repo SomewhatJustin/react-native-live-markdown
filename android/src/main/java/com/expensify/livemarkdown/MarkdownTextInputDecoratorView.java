@@ -35,6 +35,13 @@ public class MarkdownTextInputDecoratorView extends ReactViewGroup {
   private Runnable mCursorCheckRunnable;
   private static final int CURSOR_CHECK_INTERVAL_MS = 100;
 
+  // Track last formatted text to detect changes from JS
+  private String mLastFormattedText = "";
+  private Runnable mTextCheckRunnable;
+  private static final int TEXT_CHECK_INTERVAL_MS = 50;
+  private static final int TEXT_CHECK_MAX_ATTEMPTS = 20; // Check for 1 second max
+  private int mTextCheckAttempts = 0;
+
   @Override
   protected void onAttachedToWindow() {
     super.onAttachedToWindow();
@@ -84,12 +91,40 @@ public class MarkdownTextInputDecoratorView extends ReactViewGroup {
         }
       };
 
+      // Text check runnable to detect changes from JS (bypasses TextWatcher)
+      // React Native's ReactEditText skips TextWatcher callbacks when setting text from JS
+      mTextCheckRunnable = new Runnable() {
+        @Override
+        public void run() {
+          if (mReactEditText == null || mMarkdownUtils == null) return;
+
+          String currentText = mReactEditText.getText().toString();
+          if (!currentText.equals(mLastFormattedText) && !currentText.isEmpty()) {
+            // Text changed from JS - apply formatting
+            Editable editable = mReactEditText.getText();
+            if (editable instanceof SpannableStringBuilder ssb) {
+              updateCursorAndFormat(ssb);
+              mLastFormattedText = currentText;
+            }
+            mTextCheckAttempts = 0; // Reset on success
+          } else if (mTextCheckAttempts < TEXT_CHECK_MAX_ATTEMPTS) {
+            // Keep checking for a bit in case text is set asynchronously
+            mTextCheckAttempts++;
+            mHandler.postDelayed(this, TEXT_CHECK_INTERVAL_MS);
+          }
+        }
+      };
+
       applyNewStyles();
 
       // Start monitoring if already focused
       if (mReactEditText.hasFocus()) {
         startCursorMonitoring();
       }
+
+      // Start text check to catch text set from JS (bypasses TextWatcher)
+      mTextCheckAttempts = 0;
+      mHandler.post(mTextCheckRunnable);
     }
   }
 
@@ -138,6 +173,8 @@ public class MarkdownTextInputDecoratorView extends ReactViewGroup {
       mLastCursorLine = getLineNumber(ssb.toString(), cursorPos);
       mMarkdownUtils.setCursorPosition(cursorPos);
       mMarkdownUtils.applyMarkdownFormatting(ssb);
+      // Track formatted text for JS change detection
+      mLastFormattedText = ssb.toString();
     }
   }
 
@@ -154,6 +191,10 @@ public class MarkdownTextInputDecoratorView extends ReactViewGroup {
   protected void onDetachedFromWindow() {
     super.onDetachedFromWindow();
     stopCursorMonitoring();
+    // Stop text check runnable
+    if (mHandler != null && mTextCheckRunnable != null) {
+      mHandler.removeCallbacks(mTextCheckRunnable);
+    }
     if (mReactEditText != null) {
       mReactEditText.removeTextChangedListener(mTextWatcher);
       mReactEditText.setOnFocusChangeListener(null);
@@ -163,6 +204,8 @@ public class MarkdownTextInputDecoratorView extends ReactViewGroup {
     }
     mHandler = null;
     mCursorCheckRunnable = null;
+    mTextCheckRunnable = null;
+    mLastFormattedText = "";
   }
 
   protected void setMarkdownStyle(MarkdownStyle markdownStyle) {
