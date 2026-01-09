@@ -12,6 +12,12 @@
     _linkColor = RCTUIColorFromSharedColor(style.link.color);
 
     _h1FontSize = style.h1.fontSize;
+    // Compute h2-h6 as ratios of h1 if not explicitly provided
+    _h2FontSize = _h1FontSize * 0.85f;
+    _h3FontSize = _h1FontSize * 0.75f;
+    _h4FontSize = _h1FontSize * 0.65f;
+    _h5FontSize = _h1FontSize * 0.60f;
+    _h6FontSize = _h1FontSize * 0.55f;
 
     _emojiFontSize = style.emoji.fontSize;
     _emojiFontFamily = RCTNSStringFromString(style.emoji.fontFamily);

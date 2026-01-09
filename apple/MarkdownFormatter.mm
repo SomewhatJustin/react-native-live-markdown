@@ -44,7 +44,7 @@
                        markdownStyle:(nonnull RCTMarkdownStyle *)markdownStyle
                defaultTextAttributes:(nonnull NSDictionary<NSAttributedStringKey, id> *)defaultTextAttributes
 {
-  if (type == "bold" || type == "italic" || type == "code" || type == "pre" || type == "h1" || type == "emoji") {
+  if (type == "bold" || type == "italic" || type == "code" || type == "pre" || type == "h1" || type == "h2" || type == "h3" || type == "h4" || type == "h5" || type == "h6" || type == "emoji") {
     UIFont *font = [attributedString attribute:NSFontAttributeName atIndex:range.location effectiveRange:NULL];
     if (type == "bold") {
       font = [RCTFont updateFont:font withWeight:@"bold"];
@@ -69,6 +69,41 @@
                                             size:[NSNumber numberWithFloat:markdownStyle.h1FontSize]
                                           weight:@"bold"
                                             style:nil
+                                          variant:nil
+                                  scaleMultiplier:0];
+    } else if (type == "h2") {
+      font = [RCTFont updateFont:font withFamily:nil
+                                            size:[NSNumber numberWithFloat:markdownStyle.h2FontSize]
+                                          weight:@"bold"
+                                            style:nil
+                                          variant:nil
+                                  scaleMultiplier:0];
+    } else if (type == "h3") {
+      font = [RCTFont updateFont:font withFamily:nil
+                                            size:[NSNumber numberWithFloat:markdownStyle.h3FontSize]
+                                          weight:@"bold"
+                                            style:nil
+                                          variant:nil
+                                  scaleMultiplier:0];
+    } else if (type == "h4") {
+      font = [RCTFont updateFont:font withFamily:nil
+                                            size:[NSNumber numberWithFloat:markdownStyle.h4FontSize]
+                                          weight:@"bold"
+                                            style:nil
+                                          variant:nil
+                                  scaleMultiplier:0];
+    } else if (type == "h5") {
+      font = [RCTFont updateFont:font withFamily:nil
+                                            size:[NSNumber numberWithFloat:markdownStyle.h5FontSize]
+                                          weight:@"bold"
+                                            style:nil
+                                          variant:nil
+                                  scaleMultiplier:0];
+    } else if (type == "h6") {
+      font = [RCTFont updateFont:font withFamily:nil
+                                            size:[NSNumber numberWithFloat:markdownStyle.h6FontSize]
+                                          weight:nil
+                                            style:@"italic"
                                           variant:nil
                                   scaleMultiplier:0];
     } else if (type == "emoji") {
@@ -115,6 +150,12 @@
     NSRange rangeForBackground = [[attributedString string] characterAtIndex:range.location] == '\n' ? NSMakeRange(range.location + 1, range.length - 1) : range;
     [attributedString addAttribute:NSBackgroundColorAttributeName value:markdownStyle.preBackgroundColor range:rangeForBackground];
     // TODO: pass background color and ranges to layout manager
+  } else if (type == "task-unchecked" || type == "task-checked") {
+    [attributedString addAttribute:NSForegroundColorAttributeName value:markdownStyle.syntaxColor range:range];
+  } else if (type == "list-bullet" || type == "list-number") {
+    [attributedString addAttribute:NSForegroundColorAttributeName value:markdownStyle.syntaxColor range:range];
+  } else if (type == "hr") {
+    [attributedString addAttribute:NSForegroundColorAttributeName value:markdownStyle.syntaxColor range:range];
   }
 }
 

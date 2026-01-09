@@ -12,9 +12,19 @@ type MarkdownType =
   | 'pre'
   | 'blockquote'
   | 'h1'
+  | 'h2'
+  | 'h3'
+  | 'h4'
+  | 'h5'
+  | 'h6'
   | 'syntax'
   | 'inline-image'
-  | 'codeblock';
+  | 'codeblock'
+  | 'task-unchecked'
+  | 'task-checked'
+  | 'list-bullet'
+  | 'list-number'
+  | 'hr';
 
 interface MarkdownRange {
   type: MarkdownType;

@@ -21,6 +21,16 @@ public class MarkdownStyle {
 
   private final float mH1FontSize;
 
+  private final float mH2FontSize;
+
+  private final float mH3FontSize;
+
+  private final float mH4FontSize;
+
+  private final float mH5FontSize;
+
+  private final float mH6FontSize;
+
   @NonNull
   private final String mEmojiFontFamily;
 
@@ -79,6 +89,11 @@ public class MarkdownStyle {
     mSyntaxColor = parseColor(map, "syntax", "color", context);
     mLinkColor = parseColor(map, "link", "color", context);
     mH1FontSize = parseFloat(map, "h1", "fontSize");
+    mH2FontSize = parseFloatOrDefault(map, "h2", "fontSize", mH1FontSize * 0.85f);
+    mH3FontSize = parseFloatOrDefault(map, "h3", "fontSize", mH1FontSize * 0.75f);
+    mH4FontSize = parseFloatOrDefault(map, "h4", "fontSize", mH1FontSize * 0.65f);
+    mH5FontSize = parseFloatOrDefault(map, "h5", "fontSize", mH1FontSize * 0.6f);
+    mH6FontSize = parseFloatOrDefault(map, "h6", "fontSize", mH1FontSize * 0.55f);
     mEmojiFontSize = parseFloat(map, "emoji", "fontSize");
     mEmojiFontFamily = parseString(map, "emoji", "fontFamily");
     mBlockquoteBorderColor = parseColor(map, "blockquote", "borderColor", context);
@@ -122,6 +137,18 @@ public class MarkdownStyle {
     return (float) value;
   }
 
+  private static float parseFloatOrDefault(@NonNull ReadableMap map, @NonNull String key, @NonNull String prop, float defaultValue) {
+    if (!map.hasKey(key)) {
+      return defaultValue;
+    }
+    ReadableMap style = map.getMap(key);
+    if (style == null || !style.hasKey(prop)) {
+      return defaultValue;
+    }
+    double value = style.getDouble(prop);
+    return (float) value;
+  }
+
   private static String parseString(@NonNull ReadableMap map, @NonNull String key, @NonNull String prop) {
     ReadableMap style = map.getMap(key);
     Objects.requireNonNull(style);
@@ -140,6 +167,26 @@ public class MarkdownStyle {
 
   public float getH1FontSize() {
     return mH1FontSize;
+  }
+
+  public float getH2FontSize() {
+    return mH2FontSize;
+  }
+
+  public float getH3FontSize() {
+    return mH3FontSize;
+  }
+
+  public float getH4FontSize() {
+    return mH4FontSize;
+  }
+
+  public float getH5FontSize() {
+    return mH5FontSize;
+  }
+
+  public float getH6FontSize() {
+    return mH6FontSize;
   }
 
   public float getEmojiFontSize() {

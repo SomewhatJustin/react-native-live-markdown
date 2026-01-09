@@ -90,6 +90,60 @@ function parseMarkdown(markdown: string): MarkdownRange[] {
       continue;
     }
 
+    // Horizontal rule: ---, ***, ___
+    const hrMatch = line.match(/^( {0,3})([-*_])\2{2,}[ \t]*$/);
+    if (hrMatch) {
+      ranges.push({type: 'hr', start: lineStart, length: line.length});
+      ranges.push({type: 'syntax', start: lineStart, length: line.length});
+      pos = lineEnd + 1;
+      continue;
+    }
+
+    // Task list: - [ ] or - [x] or - [X]
+    const taskMatch = line.match(/^( {0,3})([-*+])[ \t]+\[([ xX])\][ \t]+/);
+    if (taskMatch) {
+      const checkChar = taskMatch[3]!;
+      const isChecked = checkChar.toLowerCase() === 'x';
+      const fullMatchLen = taskMatch[0].length;
+
+      // Mark the "- [x] " as syntax (will be hidden)
+      ranges.push({type: 'syntax', start: lineStart, length: fullMatchLen});
+      // Mark the checkbox type
+      ranges.push({
+        type: isChecked ? 'task-checked' : 'task-unchecked',
+        start: lineStart,
+        length: fullMatchLen,
+      });
+      pos = lineEnd + 1;
+      continue;
+    }
+
+    // Unordered list: -, *, +
+    const ulMatch = line.match(/^( {0,3})([-*+])[ \t]+/);
+    if (ulMatch) {
+      const indent = ulMatch[1]!;
+      const markerStart = lineStart + indent.length;
+      // Mark the marker as syntax
+      ranges.push({type: 'syntax', start: markerStart, length: ulMatch[0].length - indent.length});
+      ranges.push({type: 'list-bullet', start: markerStart, length: 1});
+      pos = lineEnd + 1;
+      continue;
+    }
+
+    // Ordered list: 1., 2., etc.
+    const olMatch = line.match(/^( {0,3})(\d{1,9})([.)])[ \t]+/);
+    if (olMatch) {
+      const indent = olMatch[1]!;
+      const num = olMatch[2]!;
+      const punct = olMatch[3]!;
+      const markerStart = lineStart + indent.length;
+      // Mark the marker as syntax
+      ranges.push({type: 'syntax', start: markerStart, length: olMatch[0].length - indent.length});
+      ranges.push({type: 'list-number', start: markerStart, length: num.length + punct.length});
+      pos = lineEnd + 1;
+      continue;
+    }
+
     pos = lineEnd + 1;
   }
 
@@ -202,14 +256,22 @@ function parseMarkdown(markdown: string): MarkdownRange[] {
       }
     }
 
-    // Strikethrough: ~text~
-    if (char === '~') {
-      const closeIndex = markdown.indexOf('~', i + 1);
-      if (closeIndex !== -1 && closeIndex > i + 1) {
-        ranges.push({type: 'syntax', start: i, length: 1});
-        ranges.push({type: 'strikethrough', start: i + 1, length: closeIndex - i - 1});
-        ranges.push({type: 'syntax', start: closeIndex, length: 1});
-        i = closeIndex + 1;
+    // Strikethrough: ~~text~~ (GFM)
+    if (char === '~' && i + 1 < markdown.length && markdown[i + 1] === '~') {
+      const contentStart = i + 2;
+      // Find closing ~~
+      let closeIndex = -1;
+      for (let k = contentStart; k < markdown.length - 1; k++) {
+        if (markdown[k] === '~' && markdown[k + 1] === '~') {
+          closeIndex = k;
+          break;
+        }
+      }
+      if (closeIndex !== -1 && closeIndex > contentStart) {
+        ranges.push({type: 'syntax', start: i, length: 2});
+        ranges.push({type: 'strikethrough', start: contentStart, length: closeIndex - contentStart});
+        ranges.push({type: 'syntax', start: closeIndex, length: 2});
+        i = closeIndex + 2;
         continue;
       }
     }

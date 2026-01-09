@@ -115,6 +115,26 @@ public class MarkdownFormatter {
         // NOTE: size span must be set after line height span to avoid height jumps
         setSpan(ssb, new MarkdownFontSizeSpan(markdownStyle.getH1FontSize()), start, end);
         break;
+      case "h2":
+        setSpan(ssb, new MarkdownBoldSpan(), start, end);
+        setSpan(ssb, new MarkdownFontSizeSpan(markdownStyle.getH2FontSize()), start, end);
+        break;
+      case "h3":
+        setSpan(ssb, new MarkdownBoldSpan(), start, end);
+        setSpan(ssb, new MarkdownFontSizeSpan(markdownStyle.getH3FontSize()), start, end);
+        break;
+      case "h4":
+        setSpan(ssb, new MarkdownBoldSpan(), start, end);
+        setSpan(ssb, new MarkdownFontSizeSpan(markdownStyle.getH4FontSize()), start, end);
+        break;
+      case "h5":
+        setSpan(ssb, new MarkdownBoldSpan(), start, end);
+        setSpan(ssb, new MarkdownFontSizeSpan(markdownStyle.getH5FontSize()), start, end);
+        break;
+      case "h6":
+        setSpan(ssb, new MarkdownItalicSpan(), start, end);
+        setSpan(ssb, new MarkdownFontSizeSpan(markdownStyle.getH6FontSize()), start, end);
+        break;
       case "blockquote":
         MarkdownBlockquoteSpan span = new MarkdownBlockquoteSpan(
           markdownStyle.getBlockquoteBorderColor(),
@@ -123,6 +143,26 @@ public class MarkdownFormatter {
           markdownStyle.getBlockquotePaddingLeft(),
           markdownRange.getDepth());
         setSpan(ssb, span, start, end);
+        break;
+      case "task-unchecked":
+        // Show unchecked box character
+        setSpan(ssb, new MarkdownForegroundColorSpan(markdownStyle.getSyntaxColor()), start, end);
+        break;
+      case "task-checked":
+        // Show checked box character with strikethrough on content
+        setSpan(ssb, new MarkdownForegroundColorSpan(markdownStyle.getSyntaxColor()), start, end);
+        break;
+      case "list-bullet":
+        // Style bullet marker
+        setSpan(ssb, new MarkdownForegroundColorSpan(markdownStyle.getSyntaxColor()), start, end);
+        break;
+      case "list-number":
+        // Style number marker
+        setSpan(ssb, new MarkdownForegroundColorSpan(markdownStyle.getSyntaxColor()), start, end);
+        break;
+      case "hr":
+        // Style horizontal rule
+        setSpan(ssb, new MarkdownForegroundColorSpan(markdownStyle.getSyntaxColor()), start, end);
         break;
     }
   }
