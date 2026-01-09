@@ -4,6 +4,8 @@ import android.content.Context;
 import android.text.Editable;
 import android.text.SpannableStringBuilder;
 import android.text.TextWatcher;
+import android.os.Handler;
+import android.os.Looper;
 
 import android.view.View;
 
@@ -28,6 +30,10 @@ public class MarkdownTextInputDecoratorView extends ReactViewGroup {
   private TextWatcher mTextWatcher;
 
   private int mLastCursorLine = -1;
+  private int mLastCursorPos = -1;
+  private Handler mHandler;
+  private Runnable mCursorCheckRunnable;
+  private static final int CURSOR_CHECK_INTERVAL_MS = 100;
 
   @Override
   protected void onAttachedToWindow() {
@@ -39,6 +45,7 @@ public class MarkdownTextInputDecoratorView extends ReactViewGroup {
       mMarkdownUtils.setMarkdownStyle(mMarkdownStyle);
       mMarkdownUtils.setParserId(mParserId);
       mReactEditText = (ReactEditText) child;
+      mHandler = new Handler(Looper.getMainLooper());
 
       // Create a text watcher that also updates cursor position
       mTextWatcher = new TextWatcher() {
@@ -57,19 +64,45 @@ public class MarkdownTextInputDecoratorView extends ReactViewGroup {
       };
       mReactEditText.addTextChangedListener(mTextWatcher);
 
-      // Also listen for selection changes (cursor movement without text change)
-      mReactEditText.setAccessibilityDelegate(new View.AccessibilityDelegate() {
-        @Override
-        public void sendAccessibilityEvent(View host, int eventType) {
-          super.sendAccessibilityEvent(host, eventType);
-          // Selection change events trigger formatting update
-          if (eventType == android.view.accessibility.AccessibilityEvent.TYPE_VIEW_TEXT_SELECTION_CHANGED) {
-            checkCursorLineChanged();
-          }
+      // Focus listener to start/stop cursor monitoring
+      mReactEditText.setOnFocusChangeListener((v, hasFocus) -> {
+        if (hasFocus) {
+          startCursorMonitoring();
+        } else {
+          stopCursorMonitoring();
         }
       });
 
+      // Periodic cursor position check while focused
+      mCursorCheckRunnable = new Runnable() {
+        @Override
+        public void run() {
+          checkCursorLineChanged();
+          if (mReactEditText != null && mReactEditText.hasFocus()) {
+            mHandler.postDelayed(this, CURSOR_CHECK_INTERVAL_MS);
+          }
+        }
+      };
+
       applyNewStyles();
+
+      // Start monitoring if already focused
+      if (mReactEditText.hasFocus()) {
+        startCursorMonitoring();
+      }
+    }
+  }
+
+  private void startCursorMonitoring() {
+    if (mHandler != null && mCursorCheckRunnable != null) {
+      mHandler.removeCallbacks(mCursorCheckRunnable);
+      mHandler.post(mCursorCheckRunnable);
+    }
+  }
+
+  private void stopCursorMonitoring() {
+    if (mHandler != null && mCursorCheckRunnable != null) {
+      mHandler.removeCallbacks(mCursorCheckRunnable);
     }
   }
 
@@ -80,6 +113,11 @@ public class MarkdownTextInputDecoratorView extends ReactViewGroup {
     if (mReactEditText == null || mMarkdownUtils == null) return;
 
     int cursorPos = mReactEditText.getSelectionStart();
+
+    // Only reformat if cursor actually moved
+    if (cursorPos == mLastCursorPos) return;
+    mLastCursorPos = cursorPos;
+
     String text = mReactEditText.getText().toString();
     int currentLine = getLineNumber(text, cursorPos);
 
@@ -87,7 +125,8 @@ public class MarkdownTextInputDecoratorView extends ReactViewGroup {
       mLastCursorLine = currentLine;
       Editable editable = mReactEditText.getText();
       if (editable instanceof SpannableStringBuilder ssb) {
-        updateCursorAndFormat(ssb);
+        mMarkdownUtils.setCursorPosition(cursorPos);
+        mMarkdownUtils.applyMarkdownFormatting(ssb);
       }
     }
   }
@@ -95,6 +134,8 @@ public class MarkdownTextInputDecoratorView extends ReactViewGroup {
   private void updateCursorAndFormat(SpannableStringBuilder ssb) {
     if (mReactEditText != null && mMarkdownUtils != null) {
       int cursorPos = mReactEditText.getSelectionStart();
+      mLastCursorPos = cursorPos;
+      mLastCursorLine = getLineNumber(ssb.toString(), cursorPos);
       mMarkdownUtils.setCursorPosition(cursorPos);
       mMarkdownUtils.applyMarkdownFormatting(ssb);
     }
@@ -112,13 +153,16 @@ public class MarkdownTextInputDecoratorView extends ReactViewGroup {
   @Override
   protected void onDetachedFromWindow() {
     super.onDetachedFromWindow();
+    stopCursorMonitoring();
     if (mReactEditText != null) {
       mReactEditText.removeTextChangedListener(mTextWatcher);
-      mReactEditText.setAccessibilityDelegate(null);
+      mReactEditText.setOnFocusChangeListener(null);
       mReactEditText = null;
       mTextWatcher = null;
       mMarkdownUtils = null;
     }
+    mHandler = null;
+    mCursorCheckRunnable = null;
   }
 
   protected void setMarkdownStyle(MarkdownStyle markdownStyle) {

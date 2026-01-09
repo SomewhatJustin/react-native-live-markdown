@@ -161,8 +161,9 @@ public class MarkdownFormatter {
         setSpan(ssb, new MarkdownForegroundColorSpan(markdownStyle.getSyntaxColor()), start, end);
         break;
       case "hr":
-        // Style horizontal rule
-        setSpan(ssb, new MarkdownForegroundColorSpan(markdownStyle.getSyntaxColor()), start, end);
+        // Style horizontal rule - use strikethrough to create a line effect
+        setSpan(ssb, new MarkdownStrikethroughSpan(), start, end);
+        setSpan(ssb, new MarkdownForegroundColorSpan(markdownStyle.getBlockquoteBorderColor()), start, end);
         break;
     }
   }
