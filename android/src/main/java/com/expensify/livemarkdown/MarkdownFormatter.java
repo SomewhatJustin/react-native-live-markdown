@@ -20,15 +20,33 @@ public class MarkdownFormatter {
     mAssetManager = assetManager;
   }
 
-  public void format(@NonNull SpannableStringBuilder ssb, @NonNull List<MarkdownRange> markdownRanges, @NonNull MarkdownStyle markdownStyle) {
+  public void format(@NonNull SpannableStringBuilder ssb, @NonNull List<MarkdownRange> markdownRanges, @NonNull MarkdownStyle markdownStyle, int cursorPosition) {
     try {
       Systrace.beginSection(0, "format");
       Objects.requireNonNull(markdownStyle, "mMarkdownStyle is null");
       removeSpans(ssb);
-      applyRanges(ssb, markdownRanges, markdownStyle);
+      String text = ssb.toString();
+      int cursorLine = cursorPosition >= 0 ? getLineNumber(text, cursorPosition) : -1;
+      applyRanges(ssb, markdownRanges, markdownStyle, text, cursorLine);
     } finally {
       Systrace.endSection(0);
     }
+  }
+
+  /**
+   * Get the line number (0-indexed) for a given character position.
+   */
+  private int getLineNumber(String text, int position) {
+    if (position < 0 || position > text.length()) {
+      return 0;
+    }
+    int line = 0;
+    for (int i = 0; i < position; i++) {
+      if (text.charAt(i) == '\n') {
+        line++;
+      }
+    }
+    return line;
   }
 
   private void removeSpans(@NonNull SpannableStringBuilder ssb) {
@@ -44,18 +62,18 @@ public class MarkdownFormatter {
     }
   }
 
-  private void applyRanges(@NonNull SpannableStringBuilder ssb, @NonNull List<MarkdownRange> markdownRanges, @NonNull MarkdownStyle markdownStyle) {
+  private void applyRanges(@NonNull SpannableStringBuilder ssb, @NonNull List<MarkdownRange> markdownRanges, @NonNull MarkdownStyle markdownStyle, String text, int cursorLine) {
     try {
       Systrace.beginSection(0, "applyRanges");
       for (MarkdownRange markdownRange : markdownRanges) {
-        applyRange(ssb, markdownRange, markdownStyle);
+        applyRange(ssb, markdownRange, markdownStyle, text, cursorLine);
       }
     } finally {
       Systrace.endSection(0);
     }
   }
 
-  private void applyRange(@NonNull SpannableStringBuilder ssb, @NonNull MarkdownRange markdownRange, @NonNull MarkdownStyle markdownStyle) {
+  private void applyRange(@NonNull SpannableStringBuilder ssb, @NonNull MarkdownRange markdownRange, @NonNull MarkdownStyle markdownStyle, String text, int cursorLine) {
     String type = markdownRange.getType();
     int start = markdownRange.getStart();
     int end = markdownRange.getEnd();
@@ -87,7 +105,15 @@ public class MarkdownFormatter {
         setSpan(ssb, new MarkdownBackgroundColorSpan(markdownStyle.getMentionReportBackgroundColor()), start, end);
         break;
       case "syntax":
-        setSpan(ssb, new MarkdownForegroundColorSpan(markdownStyle.getSyntaxColor()), start, end);
+        // Check if this syntax should be hidden (cursor is on a different line)
+        int syntaxLine = getLineNumber(text, start);
+        if (cursorLine >= 0 && syntaxLine != cursorLine) {
+          // Hide the syntax - cursor is on a different line
+          setSpan(ssb, new MarkdownHiddenSpan(), start, end);
+        } else {
+          // Show the syntax with gray color - cursor is on this line (or no cursor)
+          setSpan(ssb, new MarkdownForegroundColorSpan(markdownStyle.getSyntaxColor()), start, end);
+        }
         break;
       case "link":
         setSpan(ssb, new MarkdownUnderlineSpan(), start, end);

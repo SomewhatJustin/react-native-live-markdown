@@ -7,7 +7,6 @@ import androidx.annotation.NonNull;
 import com.facebook.react.bridge.ReactContext;
 import com.facebook.systrace.Systrace;
 
-import java.util.ArrayList;
 import java.util.List;
 
 public class MarkdownUtils {
@@ -38,62 +37,11 @@ public class MarkdownUtils {
   public void applyMarkdownFormatting(SpannableStringBuilder ssb) {
     try {
       Systrace.beginSection(0, "applyMarkdownFormatting");
-      String text = ssb.toString();
-      List<MarkdownRange> markdownRanges = mMarkdownParser.parse(text, mParserId);
-
-      // Filter syntax ranges based on cursor position (syntax hiding)
-      List<MarkdownRange> filteredRanges = filterSyntaxRanges(markdownRanges, text, mCursorPosition);
-
-      mMarkdownFormatter.format(ssb, filteredRanges, mMarkdownStyle);
+      List<MarkdownRange> markdownRanges = mMarkdownParser.parse(ssb.toString(), mParserId);
+      // Pass cursor position to formatter for syntax hiding
+      mMarkdownFormatter.format(ssb, markdownRanges, mMarkdownStyle, mCursorPosition);
     } finally {
       Systrace.endSection(0);
     }
-  }
-
-  /**
-   * Filter out 'syntax' ranges that are not on the cursor's line.
-   * This creates the "syntax hiding" effect where markdown syntax is only
-   * visible when the cursor is on that line.
-   */
-  private List<MarkdownRange> filterSyntaxRanges(List<MarkdownRange> ranges, String text, int cursorPos) {
-    if (cursorPos < 0) {
-      // No cursor position set, show all syntax
-      return ranges;
-    }
-
-    // Find which line the cursor is on
-    int cursorLine = getLineNumber(text, cursorPos);
-
-    List<MarkdownRange> filtered = new ArrayList<>();
-    for (MarkdownRange range : ranges) {
-      if ("syntax".equals(range.getType())) {
-        // Only include syntax ranges that are on the cursor's line
-        int rangeLine = getLineNumber(text, range.getStart());
-        if (rangeLine == cursorLine) {
-          filtered.add(range);
-        }
-        // Skip syntax ranges not on cursor line (they will be hidden)
-      } else {
-        // Always include non-syntax ranges
-        filtered.add(range);
-      }
-    }
-    return filtered;
-  }
-
-  /**
-   * Get the line number (0-indexed) for a given character position.
-   */
-  private int getLineNumber(String text, int position) {
-    if (position < 0 || position > text.length()) {
-      return 0;
-    }
-    int line = 0;
-    for (int i = 0; i < position; i++) {
-      if (text.charAt(i) == '\n') {
-        line++;
-      }
-    }
-    return line;
   }
 }
