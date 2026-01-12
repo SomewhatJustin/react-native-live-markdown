@@ -146,9 +146,9 @@ public class MarkdownFormatter {
       }
     }
 
-    // Cursor is "in the zone" if it's anywhere from start to end+1
-    // The +1 allows cursor immediately after closing syntax (e.g., **word**|)
-    return cursorPos >= zoneStart && cursorPos <= zoneEnd + 1;
+    // Cursor is "in the zone" if it's anywhere within the formatted region
+    // This includes the syntax characters and content, but NOT the position after
+    return cursorPos >= zoneStart && cursorPos <= zoneEnd;
   }
 
   private void applyRange(@NonNull SpannableStringBuilder ssb, @NonNull MarkdownRange markdownRange, @NonNull List<MarkdownRange> allRanges, @NonNull MarkdownStyle markdownStyle, String text, int cursorLine, int cursorPosition) {

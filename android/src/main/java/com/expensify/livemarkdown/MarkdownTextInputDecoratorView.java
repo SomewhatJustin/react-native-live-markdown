@@ -142,7 +142,9 @@ public class MarkdownTextInputDecoratorView extends ReactViewGroup {
   }
 
   /**
-   * Check if cursor moved to a different line, and re-format if so.
+   * Check if cursor moved, and re-format if so.
+   * We re-format on ANY cursor movement (not just line changes) because
+   * inline syntax (bold/italic) hides based on cursor position within the line.
    */
   private void checkCursorLineChanged() {
     if (mReactEditText == null || mMarkdownUtils == null) return;
@@ -153,16 +155,12 @@ public class MarkdownTextInputDecoratorView extends ReactViewGroup {
     if (cursorPos == mLastCursorPos) return;
     mLastCursorPos = cursorPos;
 
-    String text = mReactEditText.getText().toString();
-    int currentLine = getLineNumber(text, cursorPos);
-
-    if (currentLine != mLastCursorLine) {
-      mLastCursorLine = currentLine;
-      Editable editable = mReactEditText.getText();
-      if (editable instanceof SpannableStringBuilder ssb) {
-        mMarkdownUtils.setCursorPosition(cursorPos);
-        mMarkdownUtils.applyMarkdownFormatting(ssb);
-      }
+    // Re-format on any cursor movement for inline syntax hiding
+    Editable editable = mReactEditText.getText();
+    if (editable instanceof SpannableStringBuilder ssb) {
+      mLastCursorLine = getLineNumber(ssb.toString(), cursorPos);
+      mMarkdownUtils.setCursorPosition(cursorPos);
+      mMarkdownUtils.applyMarkdownFormatting(ssb);
     }
   }
 
