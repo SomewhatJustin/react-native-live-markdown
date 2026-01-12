@@ -20,6 +20,11 @@ public class MarkdownFormatter {
     mAssetManager = assetManager;
   }
 
+  // Inline formatting types that should hide based on cursor adjacency, not line
+  private static final java.util.Set<String> INLINE_TYPES = java.util.Set.of(
+    "bold", "italic", "strikethrough"
+  );
+
   public void format(@NonNull SpannableStringBuilder ssb, @NonNull List<MarkdownRange> markdownRanges, @NonNull MarkdownStyle markdownStyle, int cursorPosition) {
     try {
       Systrace.beginSection(0, "format");
@@ -27,7 +32,7 @@ public class MarkdownFormatter {
       removeSpans(ssb);
       String text = ssb.toString();
       int cursorLine = cursorPosition >= 0 ? getLineNumber(text, cursorPosition) : -1;
-      applyRanges(ssb, markdownRanges, markdownStyle, text, cursorLine);
+      applyRanges(ssb, markdownRanges, markdownStyle, text, cursorLine, cursorPosition);
     } finally {
       Systrace.endSection(0);
     }
@@ -62,18 +67,91 @@ public class MarkdownFormatter {
     }
   }
 
-  private void applyRanges(@NonNull SpannableStringBuilder ssb, @NonNull List<MarkdownRange> markdownRanges, @NonNull MarkdownStyle markdownStyle, String text, int cursorLine) {
+  private void applyRanges(@NonNull SpannableStringBuilder ssb, @NonNull List<MarkdownRange> markdownRanges, @NonNull MarkdownStyle markdownStyle, String text, int cursorLine, int cursorPosition) {
     try {
       Systrace.beginSection(0, "applyRanges");
       for (MarkdownRange markdownRange : markdownRanges) {
-        applyRange(ssb, markdownRange, markdownStyle, text, cursorLine);
+        applyRange(ssb, markdownRange, markdownRanges, markdownStyle, text, cursorLine, cursorPosition);
       }
     } finally {
       Systrace.endSection(0);
     }
   }
 
-  private void applyRange(@NonNull SpannableStringBuilder ssb, @NonNull MarkdownRange markdownRange, @NonNull MarkdownStyle markdownStyle, String text, int cursorLine) {
+  /**
+   * Check if a syntax range is adjacent to an inline content type (bold/italic/strikethrough).
+   */
+  private boolean isAdjacentToInlineType(MarkdownRange syntaxRange, List<MarkdownRange> allRanges) {
+    int syntaxStart = syntaxRange.getStart();
+    int syntaxEnd = syntaxRange.getEnd();
+
+    for (MarkdownRange range : allRanges) {
+      if (INLINE_TYPES.contains(range.getType())) {
+        int contentStart = range.getStart();
+        int contentEnd = range.getEnd();
+        // Adjacent if: syntax ends where content starts, or content ends where syntax starts
+        if (syntaxEnd == contentStart || contentEnd == syntaxStart) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  /**
+   * Check if this syntax range is adjacent to an inline formatted region (bold/italic/strikethrough)
+   * and whether the cursor is within or immediately after that region.
+   *
+   * @param syntaxRange The syntax range being checked
+   * @param allRanges All markdown ranges (to find adjacent inline content)
+   * @param cursorPos The current cursor position
+   * @return true if syntax should be shown, false if it should be hidden
+   */
+  private boolean shouldShowInlineSyntax(MarkdownRange syntaxRange, List<MarkdownRange> allRanges, int cursorPos) {
+    int syntaxStart = syntaxRange.getStart();
+    int syntaxEnd = syntaxRange.getEnd();
+
+    // Find the adjacent inline content range
+    MarkdownRange contentRange = null;
+    for (MarkdownRange range : allRanges) {
+      if (INLINE_TYPES.contains(range.getType())) {
+        int contentStart = range.getStart();
+        int contentEnd = range.getEnd();
+        if (syntaxEnd == contentStart || contentEnd == syntaxStart) {
+          contentRange = range;
+          break;
+        }
+      }
+    }
+
+    if (contentRange == null) {
+      return true; // No adjacent content found, show syntax
+    }
+
+    // Find the full zone: opening syntax + content + closing syntax
+    // We need to find both syntax ranges that surround this content
+    int zoneStart = contentRange.getStart();
+    int zoneEnd = contentRange.getEnd();
+
+    for (MarkdownRange range : allRanges) {
+      if ("syntax".equals(range.getType())) {
+        // Opening syntax: ends where content starts
+        if (range.getEnd() == contentRange.getStart()) {
+          zoneStart = range.getStart();
+        }
+        // Closing syntax: starts where content ends
+        if (range.getStart() == contentRange.getEnd()) {
+          zoneEnd = range.getEnd();
+        }
+      }
+    }
+
+    // Cursor is "in the zone" if it's anywhere from start to end+1
+    // The +1 allows cursor immediately after closing syntax (e.g., **word**|)
+    return cursorPos >= zoneStart && cursorPos <= zoneEnd + 1;
+  }
+
+  private void applyRange(@NonNull SpannableStringBuilder ssb, @NonNull MarkdownRange markdownRange, @NonNull List<MarkdownRange> allRanges, @NonNull MarkdownStyle markdownStyle, String text, int cursorLine, int cursorPosition) {
     String type = markdownRange.getType();
     int start = markdownRange.getStart();
     int end = markdownRange.getEnd();
@@ -105,14 +183,25 @@ public class MarkdownFormatter {
         setSpan(ssb, new MarkdownBackgroundColorSpan(markdownStyle.getMentionReportBackgroundColor()), start, end);
         break;
       case "syntax":
-        // Check if this syntax should be hidden (cursor is on a different line)
-        int syntaxLine = getLineNumber(text, start);
-        if (cursorLine >= 0 && syntaxLine != cursorLine) {
-          // Hide the syntax - cursor is on a different line
-          setSpan(ssb, new MarkdownHiddenSpan(), start, end);
+        // Check if this syntax is for inline formatting (bold/italic/strikethrough)
+        // Those should hide based on cursor adjacency, not line
+        boolean isInlineSyntax = isAdjacentToInlineType(markdownRange, allRanges);
+
+        if (isInlineSyntax) {
+          // Inline syntax: hide when cursor leaves the word zone
+          if (cursorPosition >= 0 && !shouldShowInlineSyntax(markdownRange, allRanges, cursorPosition)) {
+            setSpan(ssb, new MarkdownHiddenSpan(), start, end);
+          } else {
+            setSpan(ssb, new MarkdownForegroundColorSpan(markdownStyle.getSyntaxColor()), start, end);
+          }
         } else {
-          // Show the syntax with gray color - cursor is on this line (or no cursor)
-          setSpan(ssb, new MarkdownForegroundColorSpan(markdownStyle.getSyntaxColor()), start, end);
+          // Block/line syntax (headings, lists, etc.): hide when cursor leaves the line
+          int syntaxLine = getLineNumber(text, start);
+          if (cursorLine >= 0 && syntaxLine != cursorLine) {
+            setSpan(ssb, new MarkdownHiddenSpan(), start, end);
+          } else {
+            setSpan(ssb, new MarkdownForegroundColorSpan(markdownStyle.getSyntaxColor()), start, end);
+          }
         }
         break;
       case "link":
