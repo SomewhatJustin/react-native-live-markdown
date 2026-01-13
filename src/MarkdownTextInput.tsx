@@ -48,12 +48,12 @@ function initializeLiveMarkdownIfNeeded() {
 function registerParser(parser: (input: string) => MarkdownRange[]): number {
   initializeLiveMarkdownIfNeeded();
   const shareableWorklet = makeShareableCloneRecursive(parser) as unknown as ShareableRef<WorkletFunction<[string], MarkdownRange[]>>;
-  const parserId = global.jsi_registerMarkdownWorklet(shareableWorklet);
+  const parserId = global.jsi_registerMarkdownWorklet!(shareableWorklet);
   return parserId;
 }
 
 function unregisterParser(parserId: number) {
-  global.jsi_unregisterMarkdownWorklet(parserId);
+  global.jsi_unregisterMarkdownWorklet?.(parserId);
 }
 
 interface MarkdownTextInputProps extends TextInputProps, InlineImagesInputProps {
@@ -90,7 +90,7 @@ function processMarkdownStyle(input: PartialMarkdownStyle | undefined): Markdown
   return processColorsInMarkdownStyle(mergeMarkdownStyleWithDefault(input));
 }
 
-const MarkdownTextInput = React.forwardRef<MarkdownTextInput, MarkdownTextInputProps>((props, ref) => {
+const MarkdownTextInput = React.forwardRef<TextInput, MarkdownTextInputProps>((props, ref) => {
   const markdownStyle = React.useMemo(() => processMarkdownStyle(props.markdownStyle), [props.markdownStyle]);
 
   if (props.parser === undefined) {
@@ -124,6 +124,8 @@ const MarkdownTextInput = React.forwardRef<MarkdownTextInput, MarkdownTextInputP
     </MarkdownTextInputDecoratorViewNativeComponent>
   );
 });
+
+MarkdownTextInput.displayName = 'MarkdownTextInput';
 
 const styles = StyleSheet.create({
   displayContents: {

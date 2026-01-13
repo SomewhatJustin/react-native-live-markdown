@@ -11,6 +11,7 @@ type MarkdownType =
   | 'code'
   | 'pre'
   | 'blockquote'
+  | 'blockquote-marker'
   | 'h1'
   | 'h2'
   | 'h3'

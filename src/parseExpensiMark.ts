@@ -27,10 +27,10 @@ function checkWorklet() {
   }
 }
 
-const MAX_PARSABLE_LENGTH = 4000;
+const MAX_PARSABLE_LENGTH = 500000;
 
 type Token = ['TEXT' | 'HTML', string];
-type StackItem = {tag: string; children: Array<StackItem | string>};
+type StackItem = {tag: string; children: (StackItem | string)[]};
 
 function parseMarkdownToHTML(markdown: string): string {
   const parser = new ExpensiMark();
@@ -178,7 +178,7 @@ function parseTreeToTextAndRanges(tree: StackItem): [string, MarkdownRange[]] {
       } else if (node.tag === '<br />') {
         text += '\n';
       } else if (node.tag.startsWith('<pre')) {
-        const [_, lb, content] = node.children.join('').match(/^(\r?\n)([\s\S]*)$/) ?? [];
+        const [, lb, content] = node.children.join('').match(/^(\r?\n)([\s\S]*)$/) ?? [];
         // Adding opening ("```${lb}") and closing ("```") codeblock syntax length, equal to 7, to the content length
         ranges.push({type: 'codeblock', start: text.length, length: (content?.length ?? 0) + 7});
         appendSyntax(`\`\`\`${lb}`);

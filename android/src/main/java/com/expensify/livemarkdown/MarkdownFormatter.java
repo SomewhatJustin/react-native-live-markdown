@@ -251,13 +251,17 @@ public class MarkdownFormatter {
         setSpan(ssb, new MarkdownFontSizeSpan(markdownStyle.getH6FontSize()), start, end);
         break;
       case "blockquote":
-        MarkdownBlockquoteSpan span = new MarkdownBlockquoteSpan(
+        MarkdownBlockquoteSpan blockquoteSpan = new MarkdownBlockquoteSpan(
           markdownStyle.getBlockquoteBorderColor(),
           markdownStyle.getBlockquoteBorderWidth(),
           markdownStyle.getBlockquoteMarginLeft(),
           markdownStyle.getBlockquotePaddingLeft(),
           markdownRange.getDepth());
-        setSpan(ssb, span, start, end);
+        setSpan(ssb, blockquoteSpan, start, end);
+        break;
+      case "blockquote-marker":
+        // Hide the "> " marker
+        setSpan(ssb, new MarkdownHiddenSpan(), start, end);
         break;
       case "task-unchecked":
         // Show unchecked box character

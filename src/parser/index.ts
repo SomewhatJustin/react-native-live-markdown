@@ -3,7 +3,7 @@
 import type {MarkdownRange, MarkdownType} from '../commonTypes';
 import {sortRanges, groupRanges} from '../rangeUtils';
 
-const MAX_PARSABLE_LENGTH = 4000;
+const MAX_PARSABLE_LENGTH = 500000;
 
 /**
  * Parse markdown text and return styling ranges.
@@ -38,10 +38,15 @@ function parseMarkdown(markdown: string): MarkdownRange[] {
         inCodeBlock = true;
         codeBlockStart = lineStart;
         codeBlockFence = fence[0]!;
-        ranges.push({type: 'syntax', start: lineStart, length: line.length});
+        // Include newline in opening fence syntax range
+        const fenceLength = lineIdx < lines.length - 1 ? line.length + 1 : line.length;
+        ranges.push({type: 'syntax', start: lineStart, length: fenceLength});
       } else if (fence[0] === codeBlockFence && fence.length >= codeBlockFence.length) {
-        ranges.push({type: 'syntax', start: lineStart, length: line.length});
-        ranges.push({type: 'pre', start: codeBlockStart, length: lineEnd - codeBlockStart});
+        // Include newline in closing fence syntax range and pre block range
+        const fenceLength = lineIdx < lines.length - 1 ? line.length + 1 : line.length;
+        const preLength = lineIdx < lines.length - 1 ? lineEnd - codeBlockStart + 1 : lineEnd - codeBlockStart;
+        ranges.push({type: 'syntax', start: lineStart, length: fenceLength});
+        ranges.push({type: 'pre', start: codeBlockStart, length: preLength});
         inCodeBlock = false;
         codeBlockFence = '';
       }
@@ -69,7 +74,8 @@ function parseMarkdown(markdown: string): MarkdownRange[] {
       });
 
       const contentStart = lineStart + indent.length + hashes.length + 1;
-      const contentLength = lineEnd - contentStart;
+      // Include newline in heading range to fix scrolling issues
+      const contentLength = lineIdx < lines.length - 1 ? lineEnd - contentStart + 1 : lineEnd - contentStart;
       if (contentLength > 0) {
         ranges.push({
           type: headingType,
@@ -84,7 +90,10 @@ function parseMarkdown(markdown: string): MarkdownRange[] {
     // Blockquote
     const bqMatch = line.match(/^( {0,3})>[ ]?/);
     if (bqMatch) {
-      ranges.push({type: 'syntax', start: lineStart, length: bqMatch[0].length});
+      const markerLen = bqMatch[0].length;
+      // Hide the "> " marker (using dedicated type to avoid scroll issues with 'syntax')
+      ranges.push({type: 'blockquote-marker', start: lineStart, length: markerLen});
+      // Style the entire line as blockquote
       ranges.push({type: 'blockquote', start: lineStart, length: line.length});
       pos = lineEnd + 1;
       continue;
@@ -93,8 +102,10 @@ function parseMarkdown(markdown: string): MarkdownRange[] {
     // Horizontal rule: ---, ***, ___
     const hrMatch = line.match(/^( {0,3})([-*_])\2{2,}[ \t]*$/);
     if (hrMatch) {
-      ranges.push({type: 'hr', start: lineStart, length: line.length});
-      ranges.push({type: 'syntax', start: lineStart, length: line.length});
+      // Include the newline character in the range to fix scrolling issues
+      const rangeLength = lineIdx < lines.length - 1 ? line.length + 1 : line.length;
+      ranges.push({type: 'hr', start: lineStart, length: rangeLength});
+      ranges.push({type: 'syntax', start: lineStart, length: rangeLength});
       pos = lineEnd + 1;
       continue;
     }
@@ -150,20 +161,33 @@ function parseMarkdown(markdown: string): MarkdownRange[] {
   // =========================================================================
   // INLINE PARSING
   // =========================================================================
+
+  // Extract code block ranges for O(1) lookup during inline parsing
+  // This avoids O(n*m) complexity from checking all ranges per character
+  const codeBlockRanges: {start: number; end: number}[] = [];
+  for (let r = 0; r < ranges.length; r++) {
+    const range = ranges[r]!;
+    if (range.type === 'pre') {
+      codeBlockRanges.push({start: range.start, end: range.start + range.length});
+    }
+  }
+  // Sort by start position (should already be roughly sorted from block parsing)
+  codeBlockRanges.sort((a, b) => a.start - b.start);
+
+  let codeBlockIdx = 0;
   let i = 0;
   while (i < markdown.length) {
     const char = markdown[i]!;
 
-    // Skip if we're inside a code block (check ranges)
-    let inCode = false;
-    for (let r = 0; r < ranges.length; r++) {
-      const range = ranges[r]!;
-      if (range.type === 'pre' && i >= range.start && i < range.start + range.length) {
-        inCode = true;
-        break;
-      }
+    // Efficiently check if we're inside a code block using sorted ranges
+    // Advance the code block pointer past any ranges we've passed
+    while (codeBlockIdx < codeBlockRanges.length && codeBlockRanges[codeBlockIdx]!.end <= i) {
+      codeBlockIdx++;
     }
-    if (inCode) {
+    // Check if current position is inside the current code block
+    if (codeBlockIdx < codeBlockRanges.length &&
+        i >= codeBlockRanges[codeBlockIdx]!.start &&
+        i < codeBlockRanges[codeBlockIdx]!.end) {
       i++;
       continue;
     }
