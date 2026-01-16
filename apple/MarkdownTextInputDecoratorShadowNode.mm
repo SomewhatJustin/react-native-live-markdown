@@ -228,7 +228,7 @@ void MarkdownTextInputDecoratorShadowNode::applyMarkdownFormattingToTextInputSta
 
     // apply markdown
     NSMutableAttributedString *newString = [nsAttributedString mutableCopy];
-    [utils applyMarkdownFormatting:newString withDefaultTextAttributes:defaultNSTextAttributes];
+    [utils applyMarkdownFormatting:newString withDefaultTextAttributes:defaultNSTextAttributes withCursorPosition:-1];
 
     // create a clone of the old TextInputState and update the
     // attributed string box to point to the string with markdown
@@ -240,7 +240,7 @@ void MarkdownTextInputDecoratorShadowNode::applyMarkdownFormattingToTextInputSta
 
     // apply markdown
     NSMutableAttributedString *newString = [nsAttributedString mutableCopy];
-    [utils applyMarkdownFormatting:newString withDefaultTextAttributes:defaultNSTextAttributes];
+    [utils applyMarkdownFormatting:newString withDefaultTextAttributes:defaultNSTextAttributes withCursorPosition:-1];
 
     // create a clone of the old TextInputState and update the
     // attributed string box to point to the string with markdown

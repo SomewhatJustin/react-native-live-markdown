@@ -19,6 +19,7 @@
 
 - (void)applyMarkdownFormatting:(nonnull NSMutableAttributedString *)attributedString
       withDefaultTextAttributes:(nonnull NSDictionary<NSAttributedStringKey, id> *)defaultTextAttributes
+             withCursorPosition:(NSInteger)cursorPosition
 {
   // `_markdownStyle` and `_parserId` may not be initialized immediately due to the order of mount instructions
   // props update will be executed after the view hierarchy is initialized.
@@ -31,7 +32,8 @@
   [_markdownFormatter formatAttributedString:attributedString
                    withDefaultTextAttributes:defaultTextAttributes
                           withMarkdownRanges:markdownRanges
-                           withMarkdownStyle:_markdownStyle];
+                           withMarkdownStyle:_markdownStyle
+                          withCursorPosition:cursorPosition];
 }
 
 @end

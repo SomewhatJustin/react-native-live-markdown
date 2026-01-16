@@ -9,7 +9,8 @@ NS_ASSUME_NONNULL_BEGIN
 @property (nonatomic) NSNumber *parserId;
 
 - (void)applyMarkdownFormatting:(nonnull NSMutableAttributedString *)attributedString
-      withDefaultTextAttributes:(nonnull NSDictionary<NSAttributedStringKey, id> *)defaultTextAttributes;
+      withDefaultTextAttributes:(nonnull NSDictionary<NSAttributedStringKey, id> *)defaultTextAttributes
+             withCursorPosition:(NSInteger)cursorPosition;
 
 @end
 

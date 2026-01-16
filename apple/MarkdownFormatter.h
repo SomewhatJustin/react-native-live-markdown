@@ -8,12 +8,17 @@ const NSAttributedStringKey RCTLiveMarkdownTextAttributeName = @"RCTLiveMarkdown
 
 const NSAttributedStringKey RCTLiveMarkdownBlockquoteDepthAttributeName = @"RCTLiveMarkdownBlockquoteDepth";
 
+const NSAttributedStringKey RCTLiveMarkdownHorizontalRuleAttributeName = @"RCTLiveMarkdownHorizontalRule";
+
+const NSAttributedStringKey RCTLiveMarkdownCodeBlockAttributeName = @"RCTLiveMarkdownCodeBlock";
+
 @interface MarkdownFormatter : NSObject
 
 - (void)formatAttributedString:(nonnull NSMutableAttributedString *)attributedString
      withDefaultTextAttributes:(nonnull NSDictionary<NSAttributedStringKey, id> *)defaultTextAttributes
             withMarkdownRanges:(nonnull NSArray<MarkdownRange *> *)markdownRanges
-             withMarkdownStyle:(nonnull RCTMarkdownStyle *)markdownStyle;
+             withMarkdownStyle:(nonnull RCTMarkdownStyle *)markdownStyle
+            withCursorPosition:(NSInteger)cursorPosition;
 
 NS_ASSUME_NONNULL_END
 

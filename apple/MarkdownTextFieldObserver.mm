@@ -54,8 +54,15 @@
     return; // skip formatting during multi-stage input to avoid breaking internal state
   }
 
+  // Get cursor position
+  NSInteger cursorPosition = -1;
+  UITextRange *selectedRange = _textField.selectedTextRange;
+  if (selectedRange != nil) {
+    cursorPosition = [_textField offsetFromPosition:_textField.beginningOfDocument toPosition:selectedRange.start];
+  }
+
   NSMutableAttributedString *attributedText = [_textField.attributedText mutableCopy];
-  [_markdownUtils applyMarkdownFormatting:attributedText withDefaultTextAttributes:_textField.defaultTextAttributes];
+  [_markdownUtils applyMarkdownFormatting:attributedText withDefaultTextAttributes:_textField.defaultTextAttributes withCursorPosition:cursorPosition];
 
   UITextRange *textRange = _textField.selectedTextRange;
 

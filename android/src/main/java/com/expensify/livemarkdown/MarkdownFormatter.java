@@ -218,7 +218,7 @@ public class MarkdownFormatter {
         setSpan(ssb, new MarkdownFontFamilySpan(markdownStyle.getPreFontFamily(), mAssetManager), start, end);
         setSpan(ssb, new MarkdownFontSizeSpan(markdownStyle.getPreFontSize()), start, end);
         setSpan(ssb, new MarkdownForegroundColorSpan(markdownStyle.getPreColor()), start, end);
-        setSpan(ssb, new MarkdownBackgroundColorSpan(markdownStyle.getPreBackgroundColor()), start, end);
+        setSpan(ssb, new MarkdownCodeBlockSpan(markdownStyle.getPreBackgroundColor()), start, end);
         break;
       case "h1":
         setSpan(ssb, new MarkdownBoldSpan(), start, end);

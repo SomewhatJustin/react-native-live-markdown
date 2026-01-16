@@ -105,7 +105,7 @@ function parseMarkdown(markdown: string): MarkdownRange[] {
       // Include the newline character in the range to fix scrolling issues
       const rangeLength = lineIdx < lines.length - 1 ? line.length + 1 : line.length;
       ranges.push({type: 'hr', start: lineStart, length: rangeLength});
-      ranges.push({type: 'syntax', start: lineStart, length: rangeLength});
+      // Note: We don't push a 'syntax' range here - hr handler manages visibility directly
       pos = lineEnd + 1;
       continue;
     }
@@ -162,32 +162,32 @@ function parseMarkdown(markdown: string): MarkdownRange[] {
   // INLINE PARSING
   // =========================================================================
 
-  // Extract code block ranges for O(1) lookup during inline parsing
+  // Extract block ranges to skip during inline parsing (code blocks, HRs)
   // This avoids O(n*m) complexity from checking all ranges per character
-  const codeBlockRanges: {start: number; end: number}[] = [];
+  const skipRanges: {start: number; end: number}[] = [];
   for (let r = 0; r < ranges.length; r++) {
     const range = ranges[r]!;
-    if (range.type === 'pre') {
-      codeBlockRanges.push({start: range.start, end: range.start + range.length});
+    if (range.type === 'pre' || range.type === 'hr') {
+      skipRanges.push({start: range.start, end: range.start + range.length});
     }
   }
   // Sort by start position (should already be roughly sorted from block parsing)
-  codeBlockRanges.sort((a, b) => a.start - b.start);
+  skipRanges.sort((a, b) => a.start - b.start);
 
-  let codeBlockIdx = 0;
+  let skipRangeIdx = 0;
   let i = 0;
   while (i < markdown.length) {
     const char = markdown[i]!;
 
-    // Efficiently check if we're inside a code block using sorted ranges
-    // Advance the code block pointer past any ranges we've passed
-    while (codeBlockIdx < codeBlockRanges.length && codeBlockRanges[codeBlockIdx]!.end <= i) {
-      codeBlockIdx++;
+    // Efficiently check if we're inside a skip range (code block, HR) using sorted ranges
+    // Advance the pointer past any ranges we've passed
+    while (skipRangeIdx < skipRanges.length && skipRanges[skipRangeIdx]!.end <= i) {
+      skipRangeIdx++;
     }
-    // Check if current position is inside the current code block
-    if (codeBlockIdx < codeBlockRanges.length &&
-        i >= codeBlockRanges[codeBlockIdx]!.start &&
-        i < codeBlockRanges[codeBlockIdx]!.end) {
+    // Check if current position is inside a skip range
+    if (skipRangeIdx < skipRanges.length &&
+        i >= skipRanges[skipRangeIdx]!.start &&
+        i < skipRanges[skipRangeIdx]!.end) {
       i++;
       continue;
     }
@@ -230,6 +230,22 @@ function parseMarkdown(markdown: string): MarkdownRange[] {
       }
     }
 
+    // Bold+Italic: ***text*** or ___text___
+    if ((char === '*' || char === '_') && i + 2 < markdown.length && markdown[i + 1] === char && markdown[i + 2] === char) {
+      const tripleDelim = char + char + char;
+      const contentStart = i + 3;
+      const closeIndex = markdown.indexOf(tripleDelim, contentStart);
+
+      if (closeIndex !== -1 && closeIndex > contentStart) {
+        ranges.push({type: 'syntax', start: i, length: 3});
+        ranges.push({type: 'bold', start: contentStart, length: closeIndex - contentStart});
+        ranges.push({type: 'italic', start: contentStart, length: closeIndex - contentStart});
+        ranges.push({type: 'syntax', start: closeIndex, length: 3});
+        i = closeIndex + 3;
+        continue;
+      }
+    }
+
     // Bold: **text** or __text__
     if ((char === '*' || char === '_') && i + 1 < markdown.length && markdown[i + 1] === char) {
       const delim = char + char;
@@ -247,6 +263,38 @@ function parseMarkdown(markdown: string): MarkdownRange[] {
           ranges.push({type: 'syntax', start: i, length: 2});
           ranges.push({type: 'bold', start: contentStart, length: closeIndex - contentStart});
           ranges.push({type: 'syntax', start: closeIndex, length: 2});
+
+          // Look for nested italic within the bold content
+          const boldContent = markdown.substring(contentStart, closeIndex);
+          let j = 0;
+          while (j < boldContent.length) {
+            const c = boldContent[j]!;
+            // Look for single * or _ that's not doubled
+            if ((c === '*' || c === '_') && !(j + 1 < boldContent.length && boldContent[j + 1] === c)) {
+              // Find closing single delimiter
+              let closeItalic = -1;
+              for (let k = j + 1; k < boldContent.length; k++) {
+                if (boldContent[k] === c) {
+                  // Make sure it's not doubled
+                  if (k + 1 < boldContent.length && boldContent[k + 1] === c) {
+                    k++;
+                    continue;
+                  }
+                  closeItalic = k;
+                  break;
+                }
+              }
+              if (closeItalic !== -1 && closeItalic > j + 1) {
+                ranges.push({type: 'syntax', start: contentStart + j, length: 1});
+                ranges.push({type: 'italic', start: contentStart + j + 1, length: closeItalic - j - 1});
+                ranges.push({type: 'syntax', start: contentStart + closeItalic, length: 1});
+                j = closeItalic + 1;
+                continue;
+              }
+            }
+            j++;
+          }
+
           i = closeIndex + 2;
           continue;
         }
@@ -295,6 +343,55 @@ function parseMarkdown(markdown: string): MarkdownRange[] {
         ranges.push({type: 'syntax', start: i, length: 2});
         ranges.push({type: 'strikethrough', start: contentStart, length: closeIndex - contentStart});
         ranges.push({type: 'syntax', start: closeIndex, length: 2});
+
+        // Look for nested bold/italic within the strikethrough content
+        const strikeContent = markdown.substring(contentStart, closeIndex);
+        let j = 0;
+        while (j < strikeContent.length) {
+          const c = strikeContent[j]!;
+          // Look for bold: ** or __
+          if ((c === '*' || c === '_') && j + 1 < strikeContent.length && strikeContent[j + 1] === c) {
+            const boldDelim = c;
+            const boldContentStart = j + 2;
+            let closeBold = -1;
+            for (let k = boldContentStart; k < strikeContent.length - 1; k++) {
+              if (strikeContent[k] === boldDelim && strikeContent[k + 1] === boldDelim) {
+                closeBold = k;
+                break;
+              }
+            }
+            if (closeBold !== -1 && closeBold > boldContentStart) {
+              ranges.push({type: 'syntax', start: contentStart + j, length: 2});
+              ranges.push({type: 'bold', start: contentStart + boldContentStart, length: closeBold - boldContentStart});
+              ranges.push({type: 'syntax', start: contentStart + closeBold, length: 2});
+              j = closeBold + 2;
+              continue;
+            }
+          }
+          // Look for italic: single * or _
+          if ((c === '*' || c === '_') && !(j + 1 < strikeContent.length && strikeContent[j + 1] === c)) {
+            let closeItalic = -1;
+            for (let k = j + 1; k < strikeContent.length; k++) {
+              if (strikeContent[k] === c) {
+                if (k + 1 < strikeContent.length && strikeContent[k + 1] === c) {
+                  k++;
+                  continue;
+                }
+                closeItalic = k;
+                break;
+              }
+            }
+            if (closeItalic !== -1 && closeItalic > j + 1) {
+              ranges.push({type: 'syntax', start: contentStart + j, length: 1});
+              ranges.push({type: 'italic', start: contentStart + j + 1, length: closeItalic - j - 1});
+              ranges.push({type: 'syntax', start: contentStart + closeItalic, length: 1});
+              j = closeItalic + 1;
+              continue;
+            }
+          }
+          j++;
+        }
+
         i = closeIndex + 2;
         continue;
       }

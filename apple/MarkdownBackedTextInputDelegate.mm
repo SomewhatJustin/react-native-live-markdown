@@ -4,15 +4,19 @@
 
 @implementation MarkdownBackedTextInputDelegate {
   __weak RCTUITextView *_textView;
+  RCTMarkdownUtils *_markdownUtils;
   id<RCTBackedTextInputDelegate> _originalTextInputDelegate;
+  NSInteger _lastCursorPosition;
 }
 
-- (instancetype)initWithTextView:(RCTUITextView *)textView
+- (instancetype)initWithTextView:(RCTUITextView *)textView markdownUtils:(RCTMarkdownUtils *)markdownUtils
 {
   if (self = [super init]) {
     _textView = textView;
+    _markdownUtils = markdownUtils;
     _originalTextInputDelegate = _textView.textInputDelegate;
     _textView.textInputDelegate = self;
+    _lastCursorPosition = -1;
   }
   return self;
 }
@@ -42,6 +46,27 @@
     mutableTypingAttributes[NSParagraphStyleAttributeName] = mutableParagraphStyle;
     _textView.typingAttributes = mutableTypingAttributes;
   }
+
+  // Re-apply markdown formatting when cursor position changes (for syntax hiding)
+  if (_textView == nil || _markdownUtils == nil || _textView.defaultTextAttributes == nil) {
+    return;
+  }
+
+  // Get cursor position
+  NSInteger cursorPosition = -1;
+  UITextRange *selectedRange = _textView.selectedTextRange;
+  if (selectedRange != nil) {
+    cursorPosition = [_textView offsetFromPosition:_textView.beginningOfDocument toPosition:selectedRange.start];
+  }
+
+  // Only reformat if cursor position actually changed
+  if (cursorPosition == _lastCursorPosition) {
+    return;
+  }
+  _lastCursorPosition = cursorPosition;
+
+  // Re-apply formatting with new cursor position by triggering text storage update
+  [_textView.textStorage setAttributedString:_textView.attributedText];
 }
 
 // Delegate all remaining calls to the original text input delegate

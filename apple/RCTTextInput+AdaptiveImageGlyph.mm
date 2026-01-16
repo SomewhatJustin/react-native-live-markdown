@@ -4,27 +4,25 @@
 
 // Helper method to setup method swizzling for adaptive image glyph
 static void setupAdaptiveImageGlyphSwizzling(Class targetClass, SEL swizzledSelector) {
-  if (@available(iOS 18.0, *)) {
-    SEL originalSelector = @selector(insertAdaptiveImageGlyph:replacementRange:);
-    
-    if ([targetClass instancesRespondToSelector:originalSelector]) {
-      Method originalMethod = class_getInstanceMethod(targetClass, originalSelector);
-      Method swizzledMethod = class_getInstanceMethod(targetClass, swizzledSelector);
-      
-      if (originalMethod && swizzledMethod) {
-        BOOL didAddMethod = class_addMethod(targetClass,
-          originalSelector,
-          method_getImplementation(swizzledMethod),
-          method_getTypeEncoding(swizzledMethod));
-        
-        if (didAddMethod) {
-          class_replaceMethod(targetClass,
-            swizzledSelector,
-            method_getImplementation(originalMethod),
-            method_getTypeEncoding(originalMethod));
-        } else {
-          method_exchangeImplementations(originalMethod, swizzledMethod);
-        }
+  SEL originalSelector = @selector(insertAdaptiveImageGlyph:replacementRange:);
+
+  if ([targetClass instancesRespondToSelector:originalSelector]) {
+    Method originalMethod = class_getInstanceMethod(targetClass, originalSelector);
+    Method swizzledMethod = class_getInstanceMethod(targetClass, swizzledSelector);
+
+    if (originalMethod && swizzledMethod) {
+      BOOL didAddMethod = class_addMethod(targetClass,
+        originalSelector,
+        method_getImplementation(swizzledMethod),
+        method_getTypeEncoding(swizzledMethod));
+
+      if (didAddMethod) {
+        class_replaceMethod(targetClass,
+          swizzledSelector,
+          method_getImplementation(originalMethod),
+          method_getTypeEncoding(originalMethod));
+      } else {
+        method_exchangeImplementations(originalMethod, swizzledMethod);
       }
     }
   }
@@ -103,9 +101,7 @@ static void handleAdaptiveImageGlyphPasteEvent(UIView *textInputView, id glyph, 
 }
 
 - (void)liveMarkdown_insertAdaptiveImageGlyph:(id)glyph replacementRange:(NSRange)replacementRange {
-  if (@available(iOS 18.0, *)) {
-    handleAdaptiveImageGlyphPasteEvent(self, glyph, replacementRange);
-  }
+  handleAdaptiveImageGlyphPasteEvent(self, glyph, replacementRange);
 }
 
 @end
@@ -120,9 +116,7 @@ static void handleAdaptiveImageGlyphPasteEvent(UIView *textInputView, id glyph, 
 }
 
 - (void)liveMarkdown_insertAdaptiveImageGlyph:(id)glyph replacementRange:(NSRange)replacementRange {
-  if (@available(iOS 18.0, *)) {
-    handleAdaptiveImageGlyphPasteEvent(self, glyph, replacementRange);
-  }
+  handleAdaptiveImageGlyphPasteEvent(self, glyph, replacementRange);
 }
 
 @end

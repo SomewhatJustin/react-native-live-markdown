@@ -15,12 +15,12 @@
 First, install the library from npm with the package manager of your choice:
 
 ```sh
-yarn add @expensify/react-native-live-markdown react-native-reanimated expensify-common html-entities@2.5.3
-npm install @expensify/react-native-live-markdown react-native-reanimated expensify-common html-entities@2.5.3 --save
-npx expo install @expensify/react-native-live-markdown react-native-reanimated expensify-common html-entities@2.5.3
+yarn add @expensify/react-native-live-markdown react-native-reanimated react-native-worklets
+npm install @expensify/react-native-live-markdown react-native-reanimated react-native-worklets --save
+npx expo install @expensify/react-native-live-markdown react-native-reanimated react-native-worklets
 ```
 
-React Native Live Markdown requires [react-native-reanimated](https://github.com/software-mansion/react-native-reanimated) 3.17.0 or newer as well as [expensify-common](https://github.com/Expensify/expensify-common) 2.0.115 and [html-entities](https://github.com/mdevils/html-entities) 2.5.3 exactly if using the default built-in ExpensiMark parser.
+React Native Live Markdown requires [react-native-reanimated](https://github.com/software-mansion/react-native-reanimated) 3.17.0 or newer and [react-native-worklets](https://github.com/margelo/react-native-worklets).
 
 Then, install the iOS dependencies with CocoaPods:
 
@@ -36,7 +36,7 @@ The library includes native code so you will need to re-build the native app.
 ## Usage
 
 ```tsx
-import {MarkdownTextInput, parseExpensiMark} from '@expensify/react-native-live-markdown';
+import {MarkdownTextInput, parseMarkdown} from '@expensify/react-native-live-markdown';
 import React from 'react';
 
 export default function App() {
@@ -46,7 +46,7 @@ export default function App() {
     <MarkdownTextInput
       value={text}
       onChangeText={setText}
-      parser={parseExpensiMark}
+      parser={parseMarkdown}
     />
   );
 }
@@ -173,7 +173,7 @@ function parser(input: string) {
 
 ## Markdown flavors support
 
-Currently, `react-native-live-markdown` supports only [ExpensiMark](https://github.com/Expensify/expensify-common/blob/main/lib/ExpensiMark.ts) flavor out-of-the-box. You can customize the behavior by passing a custom parser worklet function via the `parser` prop, as detailed in the [Parsing logic](#parsing-logic) section.
+`react-native-live-markdown` includes a built-in CommonMark-inspired parser. You can customize the behavior by passing a custom parser worklet function via the `parser` prop, as detailed in the [Parsing logic](#parsing-logic) section.
 
 ## API reference
 

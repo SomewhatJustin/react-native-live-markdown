@@ -3,11 +3,9 @@
 
 NS_ASSUME_NONNULL_BEGIN
 
-@interface BlockquoteTextLayoutFragment : NSTextLayoutFragment
+@interface CodeBlockTextLayoutFragment : NSTextLayoutFragment
 
 @property (nonnull, atomic) RCTMarkdownUtils *markdownUtils;
-
-@property NSUInteger depth;
 
 @end
 

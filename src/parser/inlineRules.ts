@@ -119,9 +119,10 @@ const codeSpanRule: InlineRule = {
 };
 
 /**
- * Emphasis: *italic*, **bold**, _italic_, __bold__
+ * Emphasis: *italic*, **bold**, _italic_, __bold__, ***bold+italic***
  *
  * This implements a simplified version of the CommonMark delimiter algorithm.
+ * Also handles triple delimiters (***) as combined bold+italic.
  */
 const emphasisRule: InlineRule = {
   name: 'emphasis',
@@ -158,8 +159,49 @@ const emphasisRule: InlineRule = {
       return null;
     }
 
-    // Look for closing delimiter
-    // For simplicity, we do a greedy search for matching delimiters
+    // Handle triple delimiters (***) as bold+italic
+    if (runLength >= 3) {
+      const closeDelim = char.repeat(3);
+      let searchPos = i;
+
+      while (searchPos < text.length) {
+        const closeIndex = text.indexOf(closeDelim, searchPos);
+        if (closeIndex === -1) {
+          break;
+        }
+
+        // Check if this can be a closer
+        const beforeClose: string = closeIndex > 0 ? text[closeIndex - 1]! : ' ';
+        const afterClose: string = closeIndex + 3 < text.length ? text[closeIndex + 3]! : ' ';
+
+        const closeRightFlanking =
+          !isUnicodeWhitespace(beforeClose) && (!isAsciiPunctuation(beforeClose) || isUnicodeWhitespace(afterClose) || isAsciiPunctuation(afterClose));
+
+        const canClose = char === '*' ? closeRightFlanking : closeRightFlanking && (!leftFlanking || isAsciiPunctuation(afterClose));
+
+        if (canClose) {
+          const content = text.substring(i, closeIndex);
+
+          // Return both bold AND italic ranges for the content
+          const ranges: MarkdownRange[] = [
+            {type: 'syntax', start: ctx.baseOffset + pos, length: 3},
+            {type: 'bold', start: ctx.baseOffset + i, length: content.length},
+            {type: 'italic', start: ctx.baseOffset + i, length: content.length},
+            {type: 'syntax', start: ctx.baseOffset + closeIndex, length: 3},
+          ];
+
+          return {
+            ranges,
+            consumed: closeIndex + 3 - pos,
+            text: char.repeat(3) + content + char.repeat(3),
+          };
+        }
+
+        searchPos = closeIndex + 1;
+      }
+    }
+
+    // Standard bold (**) or italic (*) handling
     const isDouble = runLength >= 2;
     const delimCount = isDouble ? 2 : 1;
     const closeDelim = char.repeat(delimCount);
