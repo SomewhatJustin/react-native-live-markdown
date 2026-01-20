@@ -73,11 +73,15 @@ public class MarkdownStyle {
   @ColorInt
   private final int mMentionHereBackgroundColor;
 
+  private final float mMentionHereBorderRadius;
+
   @ColorInt
   private final int mMentionUserColor;
 
   @ColorInt
   private final int mMentionUserBackgroundColor;
+
+  private final float mMentionUserBorderRadius;
 
   @ColorInt
   private final int mMentionReportColor;
@@ -85,12 +89,16 @@ public class MarkdownStyle {
   @ColorInt
   private final int mMentionReportBackgroundColor;
 
+  private final float mMentionReportBorderRadius;
+
   @ColorInt
   private final int mTableBorderColor;
 
   private final float mTableBorderWidth;
 
   public MarkdownStyle(@NonNull ReadableMap map, @NonNull Context context) {
+    float screenDensity = context.getResources().getDisplayMetrics().density;
+
     mSyntaxColor = parseColor(map, "syntax", "color", context);
     mLinkColor = parseColor(map, "link", "color", context);
     mH1FontSize = parseFloat(map, "h1", "fontSize");
@@ -115,10 +123,13 @@ public class MarkdownStyle {
     mPreBackgroundColor = parseColor(map, "pre", "backgroundColor", context);
     mMentionHereColor = parseColor(map, "mentionHere", "color", context);
     mMentionHereBackgroundColor = parseColor(map, "mentionHere", "backgroundColor", context);
+    mMentionHereBorderRadius = parseFloat(map, "mentionHere", "borderRadius") * screenDensity;
     mMentionUserColor = parseColor(map, "mentionUser", "color", context);
     mMentionUserBackgroundColor = parseColor(map, "mentionUser", "backgroundColor", context);
+    mMentionUserBorderRadius = parseFloat(map, "mentionUser", "borderRadius") * screenDensity;
     mMentionReportColor = parseColor(map, "mentionReport", "color", context);
     mMentionReportBackgroundColor = parseColor(map, "mentionReport", "backgroundColor", context);
+    mMentionReportBorderRadius = parseFloat(map, "mentionReport", "borderRadius") * screenDensity;
 
     // Table style - use sensible defaults (light gray border, 1dp width)
     mTableBorderColor = 0xFFCCCCCC; // Light gray
@@ -269,6 +280,10 @@ public class MarkdownStyle {
     return mMentionHereBackgroundColor;
   }
 
+  public float getMentionHereBorderRadius() {
+    return mMentionHereBorderRadius;
+  }
+
   @ColorInt
   public int getMentionUserColor() {
     return mMentionUserColor;
@@ -279,6 +294,10 @@ public class MarkdownStyle {
     return mMentionUserBackgroundColor;
   }
 
+  public float getMentionUserBorderRadius() {
+    return mMentionUserBorderRadius;
+  }
+
   @ColorInt
   public int getMentionReportColor() {
     return mMentionReportColor;
@@ -287,6 +306,10 @@ public class MarkdownStyle {
   @ColorInt
   public int getMentionReportBackgroundColor() {
     return mMentionReportBackgroundColor;
+  }
+
+  public float getMentionReportBorderRadius() {
+    return mMentionReportBorderRadius;
   }
 
   @ColorInt

@@ -54,12 +54,15 @@
 
     _mentionHereColor = RCTUIColorFromSharedColor(style.mentionHere.color);
     _mentionHereBackgroundColor = RCTUIColorFromSharedColor(style.mentionHere.backgroundColor);
+    _mentionHereBorderRadius = style.mentionHere.borderRadius;
 
     _mentionUserColor = RCTUIColorFromSharedColor(style.mentionUser.color);
     _mentionUserBackgroundColor = RCTUIColorFromSharedColor(style.mentionUser.backgroundColor);
+    _mentionUserBorderRadius = style.mentionUser.borderRadius;
 
     _mentionReportColor = RCTUIColorFromSharedColor(style.mentionReport.color);
     _mentionReportBackgroundColor = RCTUIColorFromSharedColor(style.mentionReport.backgroundColor);
+    _mentionReportBorderRadius = style.mentionReport.borderRadius;
 
     // Table style - match Obsidian styling
     _tableBorderColor = [UIColor colorWithRed:0.75 green:0.75 blue:0.77 alpha:1.0];
