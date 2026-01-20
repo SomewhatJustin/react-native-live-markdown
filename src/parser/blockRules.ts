@@ -113,48 +113,49 @@ const atxHeadingRule: BlockRule = {
   },
 };
 
-/**
- * Thematic break: ---, ***, ___
- */
-const thematicBreakRule: BlockRule = {
-  name: 'thematicBreak',
-
-  match(line: string, _state: BlockState): BlockMatch | null {
-    // Up to 3 spaces, then 3+ of same char (-, *, _) with optional spaces between
-    const match = line.match(/^( {0,3})([-*_])(?:[ \t]*\2){2,}[ \t]*$/);
-    if (!match) {
-      return null;
-    }
-
-    return {
-      type: 'thematic-break',
-      consumed: line.length,
-      contentOffset: line.length,
-      data: {char: match[2]},
-    };
-  },
-
-  process(_match: BlockMatch, state: BlockState, lineInfo: LineInfo): boolean {
-    const block: Block = {
-      type: 'thematic-break',
-      start: lineInfo.start,
-      end: lineInfo.end,
-      contentStart: lineInfo.end,
-      contentEnd: lineInfo.end,
-      children: [],
-      syntaxRanges: [
-        {
-          type: 'syntax',
-          start: lineInfo.start,
-          length: lineInfo.text.length,
-        },
-      ],
-    };
-
-    state.blocks.push(block);
-    return false;
-  },
-};
+// MVP: Thematic breaks disabled - re-enable when ready
+// /**
+//  * Thematic break: ---, ***, ___
+//  */
+// const thematicBreakRule: BlockRule = {
+//   name: 'thematicBreak',
+//
+//   match(line: string, _state: BlockState): BlockMatch | null {
+//     // Up to 3 spaces, then 3+ of same char (-, *, _) with optional spaces between
+//     const match = line.match(/^( {0,3})([-*_])(?:[ \t]*\2){2,}[ \t]*$/);
+//     if (!match) {
+//       return null;
+//     }
+//
+//     return {
+//       type: 'thematic-break',
+//       consumed: line.length,
+//       contentOffset: line.length,
+//       data: {char: match[2]},
+//     };
+//   },
+//
+//   process(_match: BlockMatch, state: BlockState, lineInfo: LineInfo): boolean {
+//     const block: Block = {
+//       type: 'thematic-break',
+//       start: lineInfo.start,
+//       end: lineInfo.end,
+//       contentStart: lineInfo.end,
+//       contentEnd: lineInfo.end,
+//       children: [],
+//       syntaxRanges: [
+//         {
+//           type: 'syntax',
+//           start: lineInfo.start,
+//           length: lineInfo.text.length,
+//         },
+//       ],
+//     };
+//
+//     state.blocks.push(block);
+//     return false;
+//   },
+// };
 
 /**
  * Fenced code block: ``` or ~~~
@@ -362,9 +363,9 @@ const paragraphRule: BlockRule = {
 
 // Register built-in rules in priority order
 registerBlockRule(atxHeadingRule);
-registerBlockRule(thematicBreakRule);
+// registerBlockRule(thematicBreakRule); // MVP: disabled
 registerBlockRule(fencedCodeRule);
 registerBlockRule(blockquoteRule);
 registerBlockRule(paragraphRule);
 
-export {atxHeadingRule, thematicBreakRule, fencedCodeRule, blockquoteRule, paragraphRule};
+export {atxHeadingRule, /* thematicBreakRule, */ fencedCodeRule, blockquoteRule, paragraphRule};

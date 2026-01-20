@@ -12,6 +12,7 @@
 #import <RNLiveMarkdown/MarkdownTextInputDecoratorComponentView.h>
 #import <RNLiveMarkdown/MarkdownTextInputDecoratorViewComponentDescriptor.h>
 #import <RNLiveMarkdown/MarkdownTextStorageDelegate.h>
+#import <RNLiveMarkdown/MarkdownFormatter.h>
 #import <RNLiveMarkdown/RCTMarkdownStyle.h>
 #import <RNLiveMarkdown/RCTTextInput+AdaptiveImageGlyph.h>
 
@@ -31,6 +32,7 @@ using namespace facebook::react;
   __weak RCTUITextView *_textView;
   __weak RCTUITextField *_textField;
   bool _observersAdded;
+  UITapGestureRecognizer *_taskTapGestureRecognizer;
 }
 
 + (ComponentDescriptorProvider)componentDescriptorProvider
@@ -127,6 +129,11 @@ using namespace facebook::react;
 
     // register delegate for fixing cursor position after blockquote and selection change handling
     _markdownBackedTextInputDelegate = [[MarkdownBackedTextInputDelegate alloc] initWithTextView:_textView markdownUtils:_markdownUtils];
+
+    // Add tap gesture recognizer for task checkbox toggling
+    _taskTapGestureRecognizer = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(handleTaskTap:)];
+    _taskTapGestureRecognizer.delegate = self;
+    [_textView addGestureRecognizer:_taskTapGestureRecognizer];
   } else {
     react_native_assert(false && "Cannot enable Markdown for this type of TextInput.");
   }
@@ -154,6 +161,10 @@ using namespace facebook::react;
     _markdownBackedTextInputDelegate = nil;
     [_textView removeObserver:_markdownTextViewObserver forKeyPath:@"defaultTextAttributes" context:NULL];
     [self disableAdaptiveImageGlyphSupport:_textView];
+    if (_taskTapGestureRecognizer != nil) {
+      [_textView removeGestureRecognizer:_taskTapGestureRecognizer];
+      _taskTapGestureRecognizer = nil;
+    }
     _markdownTextViewObserver = nil;
     _markdownTextStorageDelegate = nil;
     _textView.textStorage.delegate = nil;
@@ -214,6 +225,101 @@ using namespace facebook::react;
 Class<RCTComponentViewProtocol> MarkdownTextInputDecoratorViewCls(void)
 {
   return MarkdownTextInputDecoratorComponentView.class;
+}
+
+#pragma mark - Task Checkbox Tap Handling
+
+- (void)handleTaskTap:(UITapGestureRecognizer *)gesture {
+  if (_textView == nil || gesture.state != UIGestureRecognizerStateEnded) {
+    return;
+  }
+
+  CGPoint tapPoint = [gesture locationInView:_textView];
+
+  // Convert tap point to text position using TextKit 2
+  NSTextLayoutManager *layoutManager = _textView.textLayoutManager;
+  if (layoutManager == nil) {
+    return;
+  }
+
+  // Find the text location at the tap point
+  __block id<NSTextLocation> textLocation = nil;
+  [layoutManager enumerateTextLayoutFragmentsFromLocation:layoutManager.documentRange.location
+                                                  options:0
+                                               usingBlock:^BOOL(NSTextLayoutFragment *fragment) {
+    CGRect fragmentFrame = fragment.layoutFragmentFrame;
+    if (CGRectContainsPoint(fragmentFrame, tapPoint)) {
+      // Found the fragment, now find the exact character
+      for (NSTextLineFragment *lineFragment in fragment.textLineFragments) {
+        CGRect lineBounds = lineFragment.typographicBounds;
+        lineBounds.origin.x += fragmentFrame.origin.x;
+        lineBounds.origin.y += fragmentFrame.origin.y;
+
+        if (CGRectContainsPoint(lineBounds, tapPoint)) {
+          CGPoint localPoint = CGPointMake(tapPoint.x - fragmentFrame.origin.x, tapPoint.y - fragmentFrame.origin.y);
+          NSUInteger charIndex = [lineFragment characterIndexForPoint:localPoint];
+          if (charIndex != NSNotFound) {
+            NSInteger docOffset = [layoutManager offsetFromLocation:layoutManager.documentRange.location toLocation:fragment.rangeInElement.location];
+            docOffset += lineFragment.characterRange.location + charIndex;
+            textLocation = [layoutManager locationFromLocation:layoutManager.documentRange.location withOffset:docOffset];
+          }
+          return NO;
+        }
+      }
+    }
+    return YES;
+  }];
+
+  if (textLocation == nil) {
+    return;
+  }
+
+  NSInteger charIndex = [layoutManager offsetFromLocation:layoutManager.documentRange.location toLocation:textLocation];
+  if (charIndex < 0 || charIndex >= (NSInteger)_textView.textStorage.length) {
+    return;
+  }
+
+  // Check if this position has a task attribute
+  NSNumber *isTaskChecked = [_textView.textStorage attribute:RCTLiveMarkdownTaskCheckedAttributeName atIndex:charIndex effectiveRange:nil];
+  if (isTaskChecked == nil) {
+    return;
+  }
+
+  // Find the task marker range (where [ ] or [x] is located)
+  // The task attribute is applied to the full "- [ ] " or "- [x] " range
+  NSRange effectiveRange;
+  [_textView.textStorage attribute:RCTLiveMarkdownTaskCheckedAttributeName atIndex:charIndex effectiveRange:&effectiveRange];
+
+  // Find the [ ] or [x] within this range
+  NSString *text = _textView.textStorage.string;
+  NSRange searchRange = effectiveRange;
+  NSRange bracketRange = [text rangeOfString:@"[" options:0 range:searchRange];
+  if (bracketRange.location == NSNotFound || bracketRange.location + 2 >= text.length) {
+    return;
+  }
+
+  // The checkbox character is at bracketRange.location + 1
+  NSUInteger checkboxCharIndex = bracketRange.location + 1;
+  unichar currentChar = [text characterAtIndex:checkboxCharIndex];
+
+  // Toggle the checkbox
+  NSString *newChar;
+  if (currentChar == ' ') {
+    newChar = @"x";
+  } else if (currentChar == 'x' || currentChar == 'X') {
+    newChar = @" ";
+  } else {
+    return; // Not a valid checkbox character
+  }
+
+  // Replace the character
+  NSRange replaceRange = NSMakeRange(checkboxCharIndex, 1);
+  [_textView.textStorage replaceCharactersInRange:replaceRange withString:newChar];
+}
+
+- (BOOL)gestureRecognizer:(UIGestureRecognizer *)gestureRecognizer shouldRecognizeSimultaneouslyWithGestureRecognizer:(UIGestureRecognizer *)otherGestureRecognizer {
+  // Allow our tap recognizer to work alongside the text view's built-in gestures
+  return YES;
 }
 
 @end

@@ -413,57 +413,58 @@ const imageRule: InlineRule = {
   },
 };
 
-/**
- * Autolink: <url> or <email@example.com>
- */
-const autolinkRule: InlineRule = {
-  name: 'autolink',
-  triggers: ['<'],
-
-  parse(text: string, pos: number, ctx: InlineContext): InlineMatch | null {
-    if (text[pos] !== '<') {
-      return null;
-    }
-
-    // Find closing >
-    const closeIndex = text.indexOf('>', pos + 1);
-    if (closeIndex === -1) {
-      return null;
-    }
-
-    const content = text.substring(pos + 1, closeIndex);
-
-    // Check for URI autolink (absolute URI)
-    const uriMatch = content.match(/^[a-zA-Z][a-zA-Z0-9+.-]{1,31}:[^\s<>]*$/);
-    if (uriMatch) {
-      return {
-        ranges: [
-          {type: 'syntax', start: ctx.baseOffset + pos, length: 1},
-          {type: 'link', start: ctx.baseOffset + pos + 1, length: content.length},
-          {type: 'syntax', start: ctx.baseOffset + closeIndex, length: 1},
-        ],
-        consumed: closeIndex - pos + 1,
-        text: '<' + content + '>',
-      };
-    }
-
-    // Check for email autolink
-    const emailMatch = content.match(/^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/);
-    if (emailMatch) {
-      return {
-        ranges: [
-          {type: 'syntax', start: ctx.baseOffset + pos, length: 1},
-          {type: 'link', start: ctx.baseOffset + pos + 1, length: content.length},
-          {type: 'syntax', start: ctx.baseOffset + closeIndex, length: 1},
-        ],
-        consumed: closeIndex - pos + 1,
-        text: '<' + content + '>',
-      };
-    }
-
-    return null;
-  },
-};
+// MVP: Autolinks disabled - re-enable when ready
+// /**
+//  * Autolink: <url> or <email@example.com>
+//  */
+// const autolinkRule: InlineRule = {
+//   name: 'autolink',
+//   triggers: ['<'],
+//
+//   parse(text: string, pos: number, ctx: InlineContext): InlineMatch | null {
+//     if (text[pos] !== '<') {
+//       return null;
+//     }
+//
+//     // Find closing >
+//     const closeIndex = text.indexOf('>', pos + 1);
+//     if (closeIndex === -1) {
+//       return null;
+//     }
+//
+//     const content = text.substring(pos + 1, closeIndex);
+//
+//     // Check for URI autolink (absolute URI)
+//     const uriMatch = content.match(/^[a-zA-Z][a-zA-Z0-9+.-]{1,31}:[^\s<>]*$/);
+//     if (uriMatch) {
+//       return {
+//         ranges: [
+//           {type: 'syntax', start: ctx.baseOffset + pos, length: 1},
+//           {type: 'link', start: ctx.baseOffset + pos + 1, length: content.length},
+//           {type: 'syntax', start: ctx.baseOffset + closeIndex, length: 1},
+//         ],
+//         consumed: closeIndex - pos + 1,
+//         text: '<' + content + '>',
+//       };
+//     }
+//
+//     // Check for email autolink
+//     const emailMatch = content.match(/^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/);
+//     if (emailMatch) {
+//       return {
+//         ranges: [
+//           {type: 'syntax', start: ctx.baseOffset + pos, length: 1},
+//           {type: 'link', start: ctx.baseOffset + pos + 1, length: content.length},
+//           {type: 'syntax', start: ctx.baseOffset + closeIndex, length: 1},
+//         ],
+//         consumed: closeIndex - pos + 1,
+//         text: '<' + content + '>',
+//       };
+//     }
+//
+//     return null;
+//   },
+// };
 
 /**
  * Hard line break: backslash at end of line or two+ spaces at end of line
@@ -509,7 +510,7 @@ registerInlineRule(codeSpanRule);
 registerInlineRule(emphasisRule);
 registerInlineRule(linkRule);
 registerInlineRule(imageRule);
-registerInlineRule(autolinkRule);
+// registerInlineRule(autolinkRule); // MVP: disabled
 registerInlineRule(hardBreakRule);
 
-export {codeSpanRule, emphasisRule, linkRule, imageRule, autolinkRule, hardBreakRule};
+export {codeSpanRule, emphasisRule, linkRule, imageRule, /* autolinkRule, */ hardBreakRule};

@@ -29,6 +29,27 @@ interface MarkdownStyle {
   };
   h1: {
     fontSize: Float;
+    color?: ColorValue;
+  };
+  h2?: {
+    fontSize?: Float;
+    color?: ColorValue;
+  };
+  h3?: {
+    fontSize?: Float;
+    color?: ColorValue;
+  };
+  h4?: {
+    fontSize?: Float;
+    color?: ColorValue;
+  };
+  h5?: {
+    fontSize?: Float;
+    color?: ColorValue;
+  };
+  h6?: {
+    fontSize?: Float;
+    color?: ColorValue;
   };
   blockquote: {
     borderColor: ColorValue;

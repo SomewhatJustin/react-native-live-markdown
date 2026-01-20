@@ -63,10 +63,13 @@ public class MarkdownParser {
           int start = range.getInt("start");
           int length = range.getInt("length");
           int depth = range.optInt("depth", 1);
+          int tableColumn = range.optInt("tableColumn", -1);
+          String tableAlignment = range.optString("tableAlignment", null);
+          int tableColumnCount = range.optInt("tableColumnCount", 0);
           if (length == 0 || start + length > text.length()) {
             continue;
           }
-          markdownRanges.add(new MarkdownRange(type, start, length, depth));
+          markdownRanges.add(new MarkdownRange(type, start, length, depth, tableColumn, tableAlignment, tableColumnCount));
         }
       } catch (JSONException e) {
         RNLog.w(mReactContext, "[react-native-live-markdown] Incorrect schema of worklet parser output: " + e.getMessage());

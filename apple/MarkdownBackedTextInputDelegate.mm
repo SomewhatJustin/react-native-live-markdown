@@ -98,7 +98,66 @@
 
 - (nonnull NSString *)textInputShouldChangeText:(nonnull NSString *)text inRange:(NSRange)range
 {
+  // Check for Enter key press to handle list continuation
+  if ([text isEqualToString:@"\n"]) {
+    NSString *continuation = [self listContinuationForRange:range];
+    if (continuation != nil) {
+      return [_originalTextInputDelegate textInputShouldChangeText:continuation inRange:range];
+    }
+  }
   return [_originalTextInputDelegate textInputShouldChangeText:text inRange:range];
+}
+
+// Returns the text to insert for list continuation, or nil if not on a list line
+- (NSString *)listContinuationForRange:(NSRange)range
+{
+  NSString *fullText = _textView.attributedText.string;
+  if (fullText == nil || range.location > fullText.length) {
+    return nil;
+  }
+
+  // Find the start of the current line
+  NSUInteger lineStart = range.location;
+  while (lineStart > 0 && [fullText characterAtIndex:lineStart - 1] != '\n') {
+    lineStart--;
+  }
+
+  // Extract the current line (up to cursor position)
+  NSString *currentLine = [fullText substringWithRange:NSMakeRange(lineStart, range.location - lineStart)];
+
+  // Check for unordered list: spaces/tabs followed by -, *, or + and a space
+  NSRegularExpression *ulRegex = [NSRegularExpression regularExpressionWithPattern:@"^([ \\t]*)([-*+])[ \\t]+" options:0 error:nil];
+  NSTextCheckingResult *ulMatch = [ulRegex firstMatchInString:currentLine options:0 range:NSMakeRange(0, currentLine.length)];
+  if (ulMatch != nil) {
+    NSString *indent = [currentLine substringWithRange:[ulMatch rangeAtIndex:1]];
+    NSString *marker = [currentLine substringWithRange:[ulMatch rangeAtIndex:2]];
+    // Check if line only contains the list marker (empty item) - don't continue, let user exit list
+    NSUInteger markerEnd = [ulMatch rangeAtIndex:0].length;
+    NSString *content = [currentLine substringFromIndex:markerEnd];
+    if ([content stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]].length == 0) {
+      return nil; // Empty list item - don't continue
+    }
+    return [NSString stringWithFormat:@"\n%@%@ ", indent, marker];
+  }
+
+  // Check for ordered list: spaces/tabs followed by number, . or ), and a space
+  NSRegularExpression *olRegex = [NSRegularExpression regularExpressionWithPattern:@"^([ \\t]*)(\\d+)([.)])[ \\t]+" options:0 error:nil];
+  NSTextCheckingResult *olMatch = [olRegex firstMatchInString:currentLine options:0 range:NSMakeRange(0, currentLine.length)];
+  if (olMatch != nil) {
+    NSString *indent = [currentLine substringWithRange:[olMatch rangeAtIndex:1]];
+    NSString *numberStr = [currentLine substringWithRange:[olMatch rangeAtIndex:2]];
+    NSString *punct = [currentLine substringWithRange:[olMatch rangeAtIndex:3]];
+    // Check if line only contains the list marker (empty item) - don't continue
+    NSUInteger markerEnd = [olMatch rangeAtIndex:0].length;
+    NSString *content = [currentLine substringFromIndex:markerEnd];
+    if ([content stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]].length == 0) {
+      return nil; // Empty list item - don't continue
+    }
+    NSInteger nextNumber = [numberStr integerValue] + 1;
+    return [NSString stringWithFormat:@"\n%@%ld%@ ", indent, (long)nextNumber, punct];
+  }
+
+  return nil; // Not a list line
 }
 
 - (BOOL)textInputShouldEndEditing

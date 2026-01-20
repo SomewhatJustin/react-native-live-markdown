@@ -23,9 +23,17 @@ type MarkdownType =
   | 'codeblock'
   | 'task-unchecked'
   | 'task-checked'
+  | 'task-content-checked'
   | 'list-bullet'
   | 'list-number'
-  | 'hr';
+  | 'hr'
+  | 'table'
+  | 'table-row'
+  | 'table-cell'
+  | 'table-delimiter'
+  | 'table-pipe';
+
+type TableAlignment = 'left' | 'center' | 'right';
 
 interface MarkdownRange {
   type: MarkdownType;
@@ -33,6 +41,9 @@ interface MarkdownRange {
   length: number;
   depth?: number;
   syntaxType?: 'opening' | 'closing';
+  tableColumn?: number;
+  tableAlignment?: TableAlignment;
+  tableColumnCount?: number;
 }
 
 type InlineImagesInputProps = {
@@ -114,4 +125,4 @@ type WorkletRuntime = {
   readonly name: string;
 };
 
-export type {MarkdownType, MarkdownRange, InlineImagesInputProps, WorkletFunction, ShareableRef, WorkletRuntime};
+export type {MarkdownType, MarkdownRange, TableAlignment, InlineImagesInputProps, WorkletFunction, ShareableRef, WorkletRuntime};

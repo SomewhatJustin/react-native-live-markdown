@@ -22,7 +22,7 @@ public class MarkdownFormatter {
 
   // Inline formatting types that should hide based on cursor adjacency, not line
   private static final java.util.Set<String> INLINE_TYPES = java.util.Set.of(
-    "bold", "italic", "strikethrough"
+    "bold", "italic", "strikethrough", "link"
   );
 
   public void format(@NonNull SpannableStringBuilder ssb, @NonNull List<MarkdownRange> markdownRanges, @NonNull MarkdownStyle markdownStyle, int cursorPosition) {
@@ -283,6 +283,71 @@ public class MarkdownFormatter {
         // Style horizontal rule - use strikethrough to create a line effect
         setSpan(ssb, new MarkdownStrikethroughSpan(), start, end);
         setSpan(ssb, new MarkdownForegroundColorSpan(markdownStyle.getBlockquoteBorderColor()), start, end);
+        break;
+      case "table":
+        // Table block - apply monospace font
+        setSpan(ssb, new MarkdownFontFamilySpan(markdownStyle.getCodeFontFamily(), mAssetManager), start, end);
+        setSpan(ssb, new MarkdownFontSizeSpan(markdownStyle.getCodeFontSize()), start, end);
+        break;
+      case "table-row":
+        // Table row - no special styling needed, handled by table type
+        break;
+      case "table-delimiter":
+        // Delimiter row - find containing table and check cursor position
+        {
+          int delimLine = getLineNumber(text, start);
+          int tableStartLine = -1;
+          int tableEndLine = -1;
+          for (MarkdownRange tableRange : allRanges) {
+            if ("table".equals(tableRange.getType())) {
+              int tStart = getLineNumber(text, tableRange.getStart());
+              int tEnd = getLineNumber(text, tableRange.getEnd() - 1);
+              if (delimLine >= tStart && delimLine <= tEnd) {
+                tableStartLine = tStart;
+                tableEndLine = tEnd;
+                break;
+              }
+            }
+          }
+          if (cursorLine >= tableStartLine && cursorLine <= tableEndLine) {
+            // Cursor in table - show as syntax
+            setSpan(ssb, new MarkdownForegroundColorSpan(markdownStyle.getSyntaxColor()), start, end);
+          } else {
+            // Hide delimiter row when not editing
+            setSpan(ssb, new MarkdownHiddenSpan(), start, end);
+          }
+        }
+        break;
+      case "table-cell":
+        // Table cell content - apply monospace font
+        setSpan(ssb, new MarkdownFontFamilySpan(markdownStyle.getCodeFontFamily(), mAssetManager), start, end);
+        setSpan(ssb, new MarkdownFontSizeSpan(markdownStyle.getCodeFontSize()), start, end);
+        break;
+      case "table-pipe":
+        // Pipe characters - style as syntax or hide based on cursor position
+        {
+          int pipeLine = getLineNumber(text, start);
+          int tableStartLine = -1;
+          int tableEndLine = -1;
+          for (MarkdownRange tableRange : allRanges) {
+            if ("table".equals(tableRange.getType())) {
+              int tStart = getLineNumber(text, tableRange.getStart());
+              int tEnd = getLineNumber(text, tableRange.getEnd() - 1);
+              if (pipeLine >= tStart && pipeLine <= tEnd) {
+                tableStartLine = tStart;
+                tableEndLine = tEnd;
+                break;
+              }
+            }
+          }
+          if (cursorLine >= tableStartLine && cursorLine <= tableEndLine) {
+            // Cursor in table - show pipes as syntax
+            setSpan(ssb, new MarkdownForegroundColorSpan(markdownStyle.getSyntaxColor()), start, end);
+          } else {
+            // Hide pipes when not editing - for cleaner rendered appearance
+            setSpan(ssb, new MarkdownHiddenSpan(), start, end);
+          }
+        }
         break;
     }
   }

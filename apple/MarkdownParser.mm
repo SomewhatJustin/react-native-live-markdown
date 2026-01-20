@@ -56,12 +56,23 @@
         const auto &length = static_cast<int>(item.getProperty(rt, "length").asNumber());
         const auto &depth = item.hasProperty(rt, "depth") ? static_cast<int>(item.getProperty(rt, "depth").asNumber()) : 1;
 
+        // Extract table-specific properties
+        const auto tableColumn = item.hasProperty(rt, "tableColumn") ? static_cast<int>(item.getProperty(rt, "tableColumn").asNumber()) : -1;
+        NSString *tableAlignment = nil;
+        if (item.hasProperty(rt, "tableAlignment")) {
+          const auto &alignmentValue = item.getProperty(rt, "tableAlignment");
+          if (!alignmentValue.isUndefined() && !alignmentValue.isNull()) {
+            tableAlignment = @(alignmentValue.asString(rt).utf8(rt).c_str());
+          }
+        }
+        const auto tableColumnCount = item.hasProperty(rt, "tableColumnCount") ? static_cast<int>(item.getProperty(rt, "tableColumnCount").asNumber()) : 0;
+
         if (length == 0 || start + length > text.length) {
           continue;
         }
 
         NSRange range = NSMakeRange(start, length);
-        MarkdownRange *markdownRange = [[MarkdownRange alloc] initWithType:@(type.c_str()) range:range depth:depth];
+        MarkdownRange *markdownRange = [[MarkdownRange alloc] initWithType:@(type.c_str()) range:range depth:depth tableColumn:tableColumn tableAlignment:tableAlignment tableColumnCount:tableColumnCount];
         [markdownRanges addObject:markdownRange];
       }
     } catch (const jsi::JSError &error) {

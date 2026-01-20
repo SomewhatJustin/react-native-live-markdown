@@ -85,6 +85,11 @@ public class MarkdownStyle {
   @ColorInt
   private final int mMentionReportBackgroundColor;
 
+  @ColorInt
+  private final int mTableBorderColor;
+
+  private final float mTableBorderWidth;
+
   public MarkdownStyle(@NonNull ReadableMap map, @NonNull Context context) {
     mSyntaxColor = parseColor(map, "syntax", "color", context);
     mLinkColor = parseColor(map, "link", "color", context);
@@ -114,6 +119,10 @@ public class MarkdownStyle {
     mMentionUserBackgroundColor = parseColor(map, "mentionUser", "backgroundColor", context);
     mMentionReportColor = parseColor(map, "mentionReport", "color", context);
     mMentionReportBackgroundColor = parseColor(map, "mentionReport", "backgroundColor", context);
+
+    // Table style - use sensible defaults (light gray border, 1dp width)
+    mTableBorderColor = 0xFFCCCCCC; // Light gray
+    mTableBorderWidth = 1.0f;
   }
 
   private static int parseColor(@NonNull ReadableMap map, @NonNull String key, @NonNull String prop, @NonNull Context context) {
@@ -278,5 +287,14 @@ public class MarkdownStyle {
   @ColorInt
   public int getMentionReportBackgroundColor() {
     return mMentionReportBackgroundColor;
+  }
+
+  @ColorInt
+  public int getTableBorderColor() {
+    return mTableBorderColor;
+  }
+
+  public float getTableBorderWidth() {
+    return mTableBorderWidth;
   }
 }

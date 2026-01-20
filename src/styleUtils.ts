@@ -26,6 +26,27 @@ function makeDefaultMarkdownStyle(): MarkdownStyle {
     },
     h1: {
       fontSize: 25,
+      color: undefined,
+    },
+    h2: {
+      fontSize: undefined,
+      color: undefined,
+    },
+    h3: {
+      fontSize: undefined,
+      color: undefined,
+    },
+    h4: {
+      fontSize: undefined,
+      color: undefined,
+    },
+    h5: {
+      fontSize: undefined,
+      color: undefined,
+    },
+    h6: {
+      fontSize: undefined,
+      color: undefined,
     },
     emoji: {
       fontSize: 20,

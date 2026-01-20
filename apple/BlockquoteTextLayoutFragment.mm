@@ -36,6 +36,11 @@
   [_markdownUtils.markdownStyle.blockquoteBorderColor setFill];
 
   CGRect boundingRect = self.boundingRect;
+  // Extend height slightly to close gaps between consecutive blockquote lines
+  // This accounts for line spacing not included in typographicBounds
+  CGFloat heightExtension = 2.0;
+  boundingRect.size.height += heightExtension;
+
   for (NSUInteger i = 0; i < _depth; ++i) {
     CGRect ribbonRect = CGRectMake(boundingRect.origin.x + i * shift, boundingRect.origin.y, borderWidth, boundingRect.size.height);
     UIRectFill(ribbonRect);
