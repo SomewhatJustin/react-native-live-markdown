@@ -112,6 +112,21 @@
 }
 
 /**
+ * Check if a line contains a list number (ordered list).
+ */
+- (BOOL)isListNumberOnLine:(NSInteger)line allRanges:(NSArray<MarkdownRange *> *)allRanges text:(NSString *)text {
+  for (MarkdownRange *range in allRanges) {
+    if ([range.type isEqualToString:@"list-number"]) {
+      NSInteger rangeLine = [self getLineNumber:text position:range.range.location];
+      if (rangeLine == line) {
+        return YES;
+      }
+    }
+  }
+  return NO;
+}
+
+/**
  * Check if this syntax range is adjacent to an inline formatted region (bold/italic/strikethrough)
  * and whether the cursor is within or immediately after that region.
  *
@@ -359,14 +374,20 @@
     } else {
       // Block-level syntax (headings, lists, etc.) - show/hide based on cursor line
       NSInteger syntaxLine = [self getLineNumber:text position:range.location];
+      BOOL isTaskLine = [self isTaskMarkerOnLine:syntaxLine allRanges:allRanges text:text];
       if (cursorLine == syntaxLine) {
         [attributedString addAttribute:NSForegroundColorAttributeName value:markdownStyle.syntaxColor range:range];
       } else {
         // Hide by making transparent and using tiny font to collapse space
         [attributedString addAttribute:NSForegroundColorAttributeName value:[UIColor clearColor] range:range];
-        if (isListBulletMarker) {
+        // Only add bullet attribute for regular list items, NOT task lists
+        if (isListBulletMarker && !isTaskLine) {
           [attributedString addAttribute:RCTLiveMarkdownListBulletAttributeName value:@(YES) range:NSMakeRange(range.location, 1)];
-        } else if (!isListBulletSyntax && !isListNumberSyntax) {
+        } else if (isListBulletSyntax && isTaskLine) {
+          // For task lines, collapse the list bullet syntax (e.g., "-") to minimal space
+          UIFont *tinyFont = [UIFont systemFontOfSize:0.01];
+          [attributedString addAttribute:NSFontAttributeName value:tinyFont range:range];
+        } else if (!isListBulletSyntax && !isListNumberSyntax && !isTaskLine) {
           UIFont *tinyFont = [UIFont systemFontOfSize:0.01];
           [attributedString addAttribute:NSFontAttributeName value:tinyFont range:range];
         }
@@ -426,11 +447,13 @@
   } else if (type == "task-unchecked" || type == "task-checked") {
     // Task checkbox - toggle between checkbox and editable characters
     NSInteger taskLine = [self getLineNumber:text position:range.location];
+    BOOL isNumberedList = [self isListNumberOnLine:taskLine allRanges:allRanges text:text];
 
-    // Add paragraph spacing for all task items to improve tap targets
+    // Add paragraph spacing for task items
     NSParagraphStyle *defaultParagraphStyle = defaultTextAttributes[NSParagraphStyleAttributeName];
     NSMutableParagraphStyle *paragraphStyle = defaultParagraphStyle != nil ? [defaultParagraphStyle mutableCopy] : [NSMutableParagraphStyle new];
-    paragraphStyle.paragraphSpacingBefore = 4.0;
+    paragraphStyle.paragraphSpacingBefore = 6.0;
+    paragraphStyle.lineSpacing = 4.0;
     [attributedString addAttribute:NSParagraphStyleAttributeName value:paragraphStyle range:range];
 
     if (cursorLine == taskLine) {
@@ -441,15 +464,16 @@
     } else {
       // Cursor not on line: hide raw characters and mark for custom checkbox drawing
       UIFont *font = defaultTextAttributes[NSFontAttributeName];
-      [attributedString addAttribute:NSFontAttributeName value:font range:range];
+      UIFont *smallMonoFont = [UIFont monospacedSystemFontOfSize:font.pointSize * 0.5 weight:UIFontWeightRegular];
+      [attributedString addAttribute:NSFontAttributeName value:smallMonoFont range:range];
       [attributedString addAttribute:NSForegroundColorAttributeName value:[UIColor clearColor] range:range];
       // Mark this range for checkbox drawing in the layout manager
       BOOL isChecked = (type == "task-checked");
       [attributedString addAttribute:RCTLiveMarkdownTaskCheckedAttributeName value:@(isChecked) range:range];
     }
   } else if (type == "task-content-checked") {
-    // Gray out completed task text (like Obsidian)
-    UIColor *grayColor = [UIColor colorWithRed:0.6 green:0.6 blue:0.6 alpha:1.0];
+    // Gray out completed task text (like Obsidian) - use a more muted gray
+    UIColor *grayColor = [UIColor colorWithRed:0.55 green:0.55 blue:0.6 alpha:1.0];
     [attributedString addAttribute:NSForegroundColorAttributeName value:grayColor range:range];
   } else if (type == "list-bullet") {
     // List bullet - toggle between bullet point and editable characters
@@ -470,21 +494,20 @@
       [attributedString addAttribute:RCTLiveMarkdownListBulletAttributeName value:@(YES) range:range];
     }
   } else if (type == "list-number") {
-    // Ordered list numbers - toggle between number display and editable characters
+    // Ordered list numbers - always show with syntax color and monospace font
+    // For task lines, the checkbox will be drawn after this by TaskTextLayoutFragment
     NSInteger numberLine = [self getLineNumber:text position:range.location];
     BOOL isTaskLine = [self isTaskMarkerOnLine:numberLine allRanges:allRanges text:text];
     UIFont *font = defaultTextAttributes[NSFontAttributeName];
-    [attributedString addAttribute:NSFontAttributeName value:font range:range];
-    if (cursorLine == numberLine || isTaskLine) {
-      // Cursor on line: show raw characters (1., 2.) for editing
-      [attributedString addAttribute:NSForegroundColorAttributeName value:markdownStyle.syntaxColor range:range];
-    } else {
-      // Cursor not on line: hide raw characters and mark for custom number drawing
-      [attributedString addAttribute:NSForegroundColorAttributeName value:[UIColor clearColor] range:range];
-      // Extract the number from the text (e.g., "1." -> 1, "42)" -> 42)
-      NSString *numberText = [text substringWithRange:range];
-      NSInteger number = [[numberText stringByTrimmingCharactersInSet:[[NSCharacterSet decimalDigitCharacterSet] invertedSet]] integerValue];
-      [attributedString addAttribute:RCTLiveMarkdownListNumberAttributeName value:@(number) range:range];
+    UIFont *monoFont = [UIFont monospacedSystemFontOfSize:font.pointSize weight:UIFontWeightRegular];
+    [attributedString addAttribute:NSFontAttributeName value:monoFont range:range];
+    [attributedString addAttribute:NSForegroundColorAttributeName value:markdownStyle.syntaxColor range:range];
+
+    // Store list number value for TaskTextLayoutFragment
+    if (isTaskLine) {
+      NSString *numberStr = [text substringWithRange:range];
+      NSInteger listNumber = [[numberStr stringByTrimmingCharactersInSet:[NSCharacterSet punctuationCharacterSet]] integerValue];
+      [attributedString addAttribute:RCTLiveMarkdownListNumberAttributeName value:@(listNumber) range:range];
     }
   } else if (type == "hr") {
     // Thematic break / horizontal rule - toggle between line and editable characters

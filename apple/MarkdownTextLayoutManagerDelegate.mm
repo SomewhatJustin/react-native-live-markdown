@@ -85,31 +85,7 @@
       }
     }
 
-    // Check for ordered list number
-    if (lineRange.location != NSNotFound && lineRange.length > 0) {
-      __block NSRange numberRange = NSMakeRange(NSNotFound, 0);
-      __block NSNumber *listNumberValue = nil;
-      [self.textStorage enumerateAttribute:RCTLiveMarkdownListNumberAttributeName
-                                   inRange:lineRange
-                                   options:0
-                                usingBlock:^(id value, NSRange range, BOOL *stop) {
-        if (value != nil) {
-          numberRange = range;
-          listNumberValue = value;
-          *stop = YES;
-        }
-      }];
-      if (numberRange.location != NSNotFound && listNumberValue != nil) {
-        ListNumberTextLayoutFragment *textLayoutFragment = [[ListNumberTextLayoutFragment alloc] initWithTextElement:textElement range:textElement.elementRange];
-        textLayoutFragment.markdownUtils = _markdownUtils;
-        textLayoutFragment.markerLocation = numberRange.location;
-        textLayoutFragment.lineStartLocation = lineRange.location;
-        textLayoutFragment.listNumber = [listNumberValue integerValue];
-        return textLayoutFragment;
-      }
-    }
-
-    // Check for task checkbox
+    // Check for task checkbox BEFORE list-number (task lines may have both)
     if (lineRange.location != NSNotFound && lineRange.length > 0) {
       __block NSRange taskRange = NSMakeRange(NSNotFound, 0);
       __block NSNumber *taskCheckedValue = nil;
@@ -129,6 +105,49 @@
         textLayoutFragment.isChecked = [taskCheckedValue boolValue];
         textLayoutFragment.markerLocation = taskRange.location;
         textLayoutFragment.lineStartLocation = lineRange.location;
+
+        // Also check for list number (for ordered task lists like "1. [x]")
+        __block NSRange numberRange = NSMakeRange(NSNotFound, 0);
+        __block NSNumber *listNumberValue = nil;
+        [self.textStorage enumerateAttribute:RCTLiveMarkdownListNumberAttributeName
+                                     inRange:lineRange
+                                     options:0
+                                  usingBlock:^(id value, NSRange range, BOOL *stop) {
+          if (value != nil) {
+            numberRange = range;
+            listNumberValue = value;
+            *stop = YES;
+          }
+        }];
+        if (numberRange.location != NSNotFound && listNumberValue != nil) {
+          textLayoutFragment.listNumber = [listNumberValue integerValue];
+          textLayoutFragment.numberLocation = numberRange.location;
+        }
+
+        return textLayoutFragment;
+      }
+    }
+
+    // Check for ordered list number (non-task list items)
+    if (lineRange.location != NSNotFound && lineRange.length > 0) {
+      __block NSRange numberRange = NSMakeRange(NSNotFound, 0);
+      __block NSNumber *listNumberValue = nil;
+      [self.textStorage enumerateAttribute:RCTLiveMarkdownListNumberAttributeName
+                                   inRange:lineRange
+                                   options:0
+                                usingBlock:^(id value, NSRange range, BOOL *stop) {
+        if (value != nil) {
+          numberRange = range;
+          listNumberValue = value;
+          *stop = YES;
+        }
+      }];
+      if (numberRange.location != NSNotFound && listNumberValue != nil) {
+        ListNumberTextLayoutFragment *textLayoutFragment = [[ListNumberTextLayoutFragment alloc] initWithTextElement:textElement range:textElement.elementRange];
+        textLayoutFragment.markdownUtils = _markdownUtils;
+        textLayoutFragment.markerLocation = numberRange.location;
+        textLayoutFragment.lineStartLocation = lineRange.location;
+        textLayoutFragment.listNumber = [listNumberValue integerValue];
         return textLayoutFragment;
       }
     }

@@ -36,10 +36,12 @@
   [_markdownUtils.markdownStyle.blockquoteBorderColor setFill];
 
   CGRect boundingRect = self.boundingRect;
-  // Extend height slightly to close gaps between consecutive blockquote lines
-  // This accounts for line spacing not included in typographicBounds
-  CGFloat heightExtension = 2.0;
-  boundingRect.size.height += heightExtension;
+  // Use the full layout fragment frame height instead of typographic bounds
+  // to ensure the vertical line covers the entire line including spacing
+  // Extend by 4 points on each side to ensure overlap between consecutive lines
+  CGRect layoutFrame = self.layoutFragmentFrame;
+  boundingRect.origin.y = layoutFrame.origin.y - 4.0;
+  boundingRect.size.height = layoutFrame.size.height + 8.0;
 
   for (NSUInteger i = 0; i < _depth; ++i) {
     CGRect ribbonRect = CGRectMake(boundingRect.origin.x + i * shift, boundingRect.origin.y, borderWidth, boundingRect.size.height);

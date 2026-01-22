@@ -15,8 +15,10 @@
 #import <RNLiveMarkdown/MarkdownFormatter.h>
 #import <RNLiveMarkdown/RCTMarkdownStyle.h>
 #import <RNLiveMarkdown/RCTTextInput+AdaptiveImageGlyph.h>
+#import <RNLiveMarkdown/TaskTextLayoutFragment.h>
 
 #import <objc/runtime.h>
+#import <CoreText/CoreText.h>
 
 using namespace facebook::react;
 
@@ -33,6 +35,7 @@ using namespace facebook::react;
   __weak RCTUITextField *_textField;
   bool _observersAdded;
   UITapGestureRecognizer *_taskTapGestureRecognizer;
+  BOOL _lastTapWasCheckbox;
 }
 
 + (ComponentDescriptorProvider)componentDescriptorProvider
@@ -251,64 +254,47 @@ Class<RCTComponentViewProtocol> MarkdownTextInputDecoratorViewCls(void)
 
   CGPoint tapPoint = [gesture locationInView:_textView];
 
-  // Convert tap point to text position using TextKit 2
-  NSTextLayoutManager *layoutManager = _textView.textLayoutManager;
-  if (layoutManager == nil) {
+  // Only process taps in the left portion of the view where checkboxes appear
+  // This includes some padding for ordered lists with numbers like "1. [x]"
+  CGFloat maxCheckboxX = 60.0;
+  if (tapPoint.x > maxCheckboxX) {
     return;
   }
 
-  // Find the text location at the tap point
-  __block id<NSTextLocation> textLocation = nil;
-  [layoutManager enumerateTextLayoutFragmentsFromLocation:layoutManager.documentRange.location
-                                                  options:0
-                                               usingBlock:^BOOL(NSTextLayoutFragment *fragment) {
-    CGRect fragmentFrame = fragment.layoutFragmentFrame;
-    if (CGRectContainsPoint(fragmentFrame, tapPoint)) {
-      // Found the fragment, now find the exact character
-      for (NSTextLineFragment *lineFragment in fragment.textLineFragments) {
-        CGRect lineBounds = lineFragment.typographicBounds;
-        lineBounds.origin.x += fragmentFrame.origin.x;
-        lineBounds.origin.y += fragmentFrame.origin.y;
+  // Use UITextView's built-in method to find the closest text position
+  UITextPosition *closestPosition = [_textView closestPositionToPoint:tapPoint];
+  if (closestPosition == nil) {
+    return;
+  }
 
-        if (CGRectContainsPoint(lineBounds, tapPoint)) {
-          CGPoint localPoint = CGPointMake(tapPoint.x - fragmentFrame.origin.x, tapPoint.y - fragmentFrame.origin.y);
-          NSUInteger charIndex = [lineFragment characterIndexForPoint:localPoint];
-          if (charIndex != NSNotFound) {
-            NSInteger docOffset = [layoutManager offsetFromLocation:layoutManager.documentRange.location toLocation:fragment.rangeInElement.location];
-            docOffset += lineFragment.characterRange.location + charIndex;
-            textLocation = [layoutManager locationFromLocation:layoutManager.documentRange.location withOffset:docOffset];
-          }
-          return NO;
-        }
-      }
+  // Get the character offset
+  NSInteger charOffset = [_textView offsetFromPosition:_textView.beginningOfDocument toPosition:closestPosition];
+  if (charOffset < 0 || charOffset >= (NSInteger)_textView.textStorage.length) {
+    return;
+  }
+
+  // Get the line containing this character
+  NSString *text = _textView.textStorage.string;
+  NSRange lineRange = [text lineRangeForRange:NSMakeRange(charOffset, 0)];
+
+  // Find task attribute in this line
+  __block NSRange taskAttributeRange = NSMakeRange(NSNotFound, 0);
+  [_textView.textStorage enumerateAttribute:RCTLiveMarkdownTaskCheckedAttributeName
+                                    inRange:lineRange
+                                    options:0
+                                 usingBlock:^(id value, NSRange range, BOOL *stop) {
+    if (value != nil) {
+      taskAttributeRange = range;
+      *stop = YES;
     }
-    return YES;
   }];
 
-  if (textLocation == nil) {
+  if (taskAttributeRange.location == NSNotFound) {
     return;
   }
 
-  NSInteger charIndex = [layoutManager offsetFromLocation:layoutManager.documentRange.location toLocation:textLocation];
-  if (charIndex < 0 || charIndex >= (NSInteger)_textView.textStorage.length) {
-    return;
-  }
-
-  // Check if this position has a task attribute
-  NSNumber *isTaskChecked = [_textView.textStorage attribute:RCTLiveMarkdownTaskCheckedAttributeName atIndex:charIndex effectiveRange:nil];
-  if (isTaskChecked == nil) {
-    return;
-  }
-
-  // Find the task marker range (where [ ] or [x] is located)
-  // The task attribute is applied to the full "- [ ] " or "- [x] " range
-  NSRange effectiveRange;
-  [_textView.textStorage attribute:RCTLiveMarkdownTaskCheckedAttributeName atIndex:charIndex effectiveRange:&effectiveRange];
-
-  // Find the [ ] or [x] within this range
-  NSString *text = _textView.textStorage.string;
-  NSRange searchRange = effectiveRange;
-  NSRange bracketRange = [text rangeOfString:@"[" options:0 range:searchRange];
+  // Find the [ ] or [x] within the task attribute range
+  NSRange bracketRange = [text rangeOfString:@"[" options:0 range:taskAttributeRange];
   if (bracketRange.location == NSNotFound || bracketRange.location + 2 >= text.length) {
     return;
   }
@@ -330,11 +316,69 @@ Class<RCTComponentViewProtocol> MarkdownTextInputDecoratorViewCls(void)
   // Replace the character
   NSRange replaceRange = NSMakeRange(checkboxCharIndex, 1);
   [_textView.textStorage replaceCharactersInRange:replaceRange withString:newChar];
+
+  // Mark that we handled this tap to prevent cursor placement
+  _lastTapWasCheckbox = YES;
+}
+
+- (BOOL)isPointOnCheckbox:(CGPoint)point {
+  if (_textView == nil) {
+    return NO;
+  }
+
+  // Only check left portion where checkboxes appear
+  CGFloat maxCheckboxX = 60.0;
+  if (point.x > maxCheckboxX) {
+    return NO;
+  }
+
+  UITextPosition *closestPosition = [_textView closestPositionToPoint:point];
+  if (closestPosition == nil) {
+    return NO;
+  }
+
+  NSInteger charOffset = [_textView offsetFromPosition:_textView.beginningOfDocument toPosition:closestPosition];
+  if (charOffset < 0 || charOffset >= (NSInteger)_textView.textStorage.length) {
+    return NO;
+  }
+
+  NSString *text = _textView.textStorage.string;
+  NSRange lineRange = [text lineRangeForRange:NSMakeRange(charOffset, 0)];
+
+  __block BOOL hasTaskAttribute = NO;
+  [_textView.textStorage enumerateAttribute:RCTLiveMarkdownTaskCheckedAttributeName
+                                    inRange:lineRange
+                                    options:0
+                                 usingBlock:^(id value, NSRange range, BOOL *stop) {
+    if (value != nil) {
+      hasTaskAttribute = YES;
+      *stop = YES;
+    }
+  }];
+
+  return hasTaskAttribute;
 }
 
 - (BOOL)gestureRecognizer:(UIGestureRecognizer *)gestureRecognizer shouldRecognizeSimultaneouslyWithGestureRecognizer:(UIGestureRecognizer *)otherGestureRecognizer {
-  // Allow our tap recognizer to work alongside the text view's built-in gestures
+  // Don't allow simultaneous recognition if we're handling a checkbox tap
+  if (gestureRecognizer == _taskTapGestureRecognizer) {
+    CGPoint point = [gestureRecognizer locationInView:_textView];
+    if ([self isPointOnCheckbox:point]) {
+      return NO; // Our gesture takes priority for checkbox taps
+    }
+  }
   return YES;
+}
+
+- (BOOL)gestureRecognizer:(UIGestureRecognizer *)gestureRecognizer shouldBeRequiredToFailByGestureRecognizer:(UIGestureRecognizer *)otherGestureRecognizer {
+  // Our checkbox gesture should take priority over text view's tap gestures
+  if (gestureRecognizer == _taskTapGestureRecognizer && otherGestureRecognizer.view == _textView) {
+    CGPoint point = [gestureRecognizer locationInView:_textView];
+    if ([self isPointOnCheckbox:point]) {
+      return YES;
+    }
+  }
+  return NO;
 }
 
 @end

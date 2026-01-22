@@ -39,6 +39,11 @@
   [_markdownUtils.markdownStyle.blockquoteBorderColor setFill];
 
   CGRect boundingRect = self.boundingRect;
+  // Extend the ribbon vertically to ensure overlap between consecutive line fragments
+  // Use a larger extension to cover line spacing gaps
+  boundingRect.origin.y -= 4.0;
+  boundingRect.size.height += 8.0;
+
   for (NSUInteger level = 0; level < _depth; ++level) {
     CGFloat x = boundingRect.origin.x + level * shift;
     CGRect ribbonRect = CGRectMake(x, boundingRect.origin.y, borderWidth, boundingRect.size.height);

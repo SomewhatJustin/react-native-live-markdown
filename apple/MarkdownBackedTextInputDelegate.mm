@@ -125,6 +125,38 @@
   // Extract the current line (up to cursor position)
   NSString *currentLine = [fullText substringWithRange:NSMakeRange(lineStart, range.location - lineStart)];
 
+  // Check for unordered task list: - [ ] or - [x] (must check before regular unordered list)
+  NSRegularExpression *ulTaskRegex = [NSRegularExpression regularExpressionWithPattern:@"^([ \\t]*)([-*+])[ \\t]+\\[[ xX]\\][ \\t]+" options:0 error:nil];
+  NSTextCheckingResult *ulTaskMatch = [ulTaskRegex firstMatchInString:currentLine options:0 range:NSMakeRange(0, currentLine.length)];
+  if (ulTaskMatch != nil) {
+    NSString *indent = [currentLine substringWithRange:[ulTaskMatch rangeAtIndex:1]];
+    NSString *marker = [currentLine substringWithRange:[ulTaskMatch rangeAtIndex:2]];
+    // Check if line only contains the task marker (empty item) - don't continue
+    NSUInteger markerEnd = [ulTaskMatch rangeAtIndex:0].length;
+    NSString *content = [currentLine substringFromIndex:markerEnd];
+    if ([content stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]].length == 0) {
+      return nil; // Empty task item - don't continue
+    }
+    return [NSString stringWithFormat:@"\n%@%@ [ ] ", indent, marker];
+  }
+
+  // Check for ordered task list: 1. [ ] or 1. [x] (must check before regular ordered list)
+  NSRegularExpression *olTaskRegex = [NSRegularExpression regularExpressionWithPattern:@"^([ \\t]*)(\\d+)([.)])[ \\t]+\\[[ xX]\\][ \\t]+" options:0 error:nil];
+  NSTextCheckingResult *olTaskMatch = [olTaskRegex firstMatchInString:currentLine options:0 range:NSMakeRange(0, currentLine.length)];
+  if (olTaskMatch != nil) {
+    NSString *indent = [currentLine substringWithRange:[olTaskMatch rangeAtIndex:1]];
+    NSString *numberStr = [currentLine substringWithRange:[olTaskMatch rangeAtIndex:2]];
+    NSString *punct = [currentLine substringWithRange:[olTaskMatch rangeAtIndex:3]];
+    // Check if line only contains the task marker (empty item) - don't continue
+    NSUInteger markerEnd = [olTaskMatch rangeAtIndex:0].length;
+    NSString *content = [currentLine substringFromIndex:markerEnd];
+    if ([content stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]].length == 0) {
+      return nil; // Empty task item - don't continue
+    }
+    NSInteger nextNumber = [numberStr integerValue] + 1;
+    return [NSString stringWithFormat:@"\n%@%ld%@ [ ] ", indent, (long)nextNumber, punct];
+  }
+
   // Check for unordered list: spaces/tabs followed by -, *, or + and a space
   NSRegularExpression *ulRegex = [NSRegularExpression regularExpressionWithPattern:@"^([ \\t]*)([-*+])[ \\t]+" options:0 error:nil];
   NSTextCheckingResult *ulMatch = [ulRegex firstMatchInString:currentLine options:0 range:NSMakeRange(0, currentLine.length)];
